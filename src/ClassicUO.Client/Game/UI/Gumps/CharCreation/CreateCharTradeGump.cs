@@ -105,9 +105,9 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                     164,
                     196,
                     93,
-                    10,
-                    60,
-                    defStatsValues[0],
+                    CharCreationEra.AdvancedStatMinimum,
+                    CharCreationEra.AdvancedStatMaximum,
+                    CharCreationEra.AdvancedStatDefaults[0],
                     HSliderBarStyle.MetalWidgetRecessedBar,
                     true
                 )
@@ -120,9 +120,9 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                     164,
                     276,
                     93,
-                    10,
-                    60,
-                    defStatsValues[1],
+                    CharCreationEra.AdvancedStatMinimum,
+                    CharCreationEra.AdvancedStatMaximum,
+                    CharCreationEra.AdvancedStatDefaults[1],
                     HSliderBarStyle.MetalWidgetRecessedBar,
                     true
                 )
@@ -135,9 +135,9 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                     164,
                     356,
                     93,
-                    10,
-                    60,
-                    defStatsValues[2],
+                    CharCreationEra.AdvancedStatMinimum,
+                    CharCreationEra.AdvancedStatMaximum,
+                    CharCreationEra.AdvancedStatDefaults[2],
                     HSliderBarStyle.MetalWidgetRecessedBar,
                     true
                 )
@@ -145,39 +145,9 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
 
             var clientFlags = World.ClientLockedFeatures.Flags;
 
+            // One shared rule decides which skills and templates the creation screens offer (CharCreationEra).
             _skillList = Client.Game.UO.FileManager.Skills.SortedSkills
-                         .Where(s =>
-                                     // All standard client versions ignore these skills by defualt
-                                     //s.Index != 26 && // MagicResist
-                                     s.Index != 47 && // Stealth
-                                     s.Index != 48 && // RemoveTrap
-                                     s.Index != 54 && // Spellweaving
-                                     (character.Race == RaceType.GARGOYLE || s.Index != 57) // Throwing for gargoyle only
-                                 )
-                          .Where(s =>
-                                    clientFlags.HasFlag(LockedFeatureFlags.AOS) ||
-                                    (
-                                        s.Index != 51 && // Chivlary
-                                        s.Index != 50 && // Focus
-                                        s.Index != 49    // Necromancy
-                                    )
-                                )
-
-                          .Where(s =>
-                                    clientFlags.HasFlag(LockedFeatureFlags.SE) ||
-                                    (
-                                        s.Index != 52 && // Bushido
-                                        s.Index != 53    // Ninjitsu
-                                    )
-                                )
-
-                          .Where(s =>
-                                    clientFlags.HasFlag(LockedFeatureFlags.SA) ||
-                                    (
-                                        s.Index != 55 && // Mysticism
-                                        s.Index != 56    // Imbuing
-                                    )
-                                )
+                         .Where(s => CharCreationEra.IsAdvancedChoice(s.Index, clientFlags, character.Race))
                          .ToList();
 
             // do not include archer if it's a gargoyle

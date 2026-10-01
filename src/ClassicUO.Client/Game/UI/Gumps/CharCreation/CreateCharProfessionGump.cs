@@ -7,6 +7,7 @@ using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Assets;
+using ClassicUO.Game.Data;
 
 namespace ClassicUO.Game.UI.Gumps.CharCreation
 {
@@ -20,8 +21,13 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
 
             if (parent == null || !Client.Game.UO.FileManager.Professions.Professions.TryGetValue(parent, out List<ProfessionInfo> professions) || professions == null)
             {
-                professions = new List<ProfessionInfo>(Client.Game.UO.FileManager.Professions.Professions.Keys);
+                // The first screen lists only the top-level entries; folders inside folders are reached through their parent.
+                professions = new List<ProfessionInfo>(Client.Game.UO.FileManager.Professions.Professions.Keys).FindAll(p => p.TopLevel);
             }
+
+            // Offer only templates whose skills the server's era has: no later-era templates on a UOR shard.
+            LockedFeatureFlags offeredFlags = World.ClientLockedFeatures.Flags;
+            professions = professions.FindAll(p => CharCreationEra.IsProfessionOffered(p, Client.Game.UO.FileManager.Professions.Professions, offeredFlags));
 
             /* Build the gump */
             Add
@@ -108,9 +114,10 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 case Buttons.Prev:
 
                 {
-                    if (_Parent != null && _Parent.TopLevel)
+                    if (_Parent != null)
                     {
-                        Parent.Add(new CreateCharProfessionGump(World));
+                        // Up one level: the folder this one sits in, or the first screen for a top-level folder.
+                        Parent.Add(new CreateCharProfessionGump(World, _Parent.ParentCategory));
                         Parent.Remove(this);
                     }
                     else
@@ -149,13 +156,15 @@ namespace ClassicUO.Game.UI.Gumps.CharCreation
                 Height = 34
             };
 
-            background.SetTooltip(localization.GetString(info.Description), 250);
+            // A template the shard defines itself carries its own text; the others use the client's string table.
+            string description = info.Description != 0 ? localization.GetString(info.Description) : info.DescriptionText;
+            background.SetTooltip(description, 250);
 
             Add(background);
 
             Add
             (
-                new Label(localization.GetString(info.Localization), true, 0x00, font: 1)
+                new Label(info.Localization != 0 ? localization.GetString(info.Localization) : info.Name, true, 0x00, font: 1)
                 {
                     X = 7,
                     Y = 8

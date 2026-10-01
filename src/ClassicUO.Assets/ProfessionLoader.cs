@@ -1,6 +1,7 @@
 ﻿// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Utility;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -35,6 +36,8 @@ namespace ClassicUO.Assets
         public string TrueName { get; set; }
         public int Localization { get; set; }
         public int Description { get; set; }
+        public string DescriptionText { get; set; }
+        public ProfessionInfo ParentCategory { get; set; }
         public int DescriptionIndex { get; set; }
         public ProfessionLoader.PROF_TYPE Type { get; set; }
         public ushort Graphic { get; set; }
@@ -49,12 +52,14 @@ namespace ClassicUO.Assets
         private readonly string[] _Keys =
         {
             "begin", "name", "truename", "desc", "toplevel", "gump", "type", "children", "skill",
-            "stat", "str", "int", "dex", "end", "true", "category", "nameid", "descid"
+            "stat", "str", "int", "dex", "end", "true", "category", "nameid", "descid", "desctext"
         };
 
         public ProfessionLoader(UOFileManager fileManager) : base(fileManager)
         {
         }
+
+        public const string ShardFileName = "BritanniaRenaissance.Prof.txt";
 
         public Dictionary<ProfessionInfo, List<ProfessionInfo>> Professions { get; } = new Dictionary<ProfessionInfo, List<ProfessionInfo>>();
 
@@ -62,7 +67,23 @@ namespace ClassicUO.Assets
         {
             bool result = false;
 
-            FileInfo file = new FileInfo(FileManager.GetUOFilePath("Prof.txt"));
+            // The shard's own template file, shipped beside the client, wins over whatever Prof.txt the player's UO
+            // folder holds: the templates on offer must be the ones the server defines.
+            FileInfo file = null;
+
+            foreach (string directory in new[] { AppContext.BaseDirectory, Environment.CurrentDirectory })
+            {
+                FileInfo candidate = new FileInfo(Path.Combine(directory, ShardFileName));
+
+                if (candidate.Exists)
+                {
+                    file = candidate;
+
+                    break;
+                }
+            }
+
+            file ??= new FileInfo(FileManager.GetUOFilePath("Prof.txt"));
 
             if (file.Exists)
             {
@@ -144,6 +165,7 @@ namespace ClassicUO.Assets
             int nameClilocID = 0;
             int descriptionClilocID = 0;
             int descriptionIndex = 0;
+            string descriptionText = null;
             ushort gump = 0;
             bool topLevel = false;
             int[,] skillIndex = new int[4, 2] { { 0xFF, 0 }, { 0xFF, 0 }, { 0xFF, 0 }, { 0xFF, 0 } };
@@ -314,6 +336,14 @@ namespace ClassicUO.Assets
 
                         break;
                     }
+
+                    case PM_CODE.DESCRIPTION_TEXT:
+
+                    {
+                        descriptionText = strings[1];
+
+                        break;
+                    }
                 }
             }
 
@@ -344,6 +374,7 @@ namespace ClassicUO.Assets
             {
                 info.Localization = nameClilocID;
                 info.Description = descriptionClilocID;
+                info.DescriptionText = descriptionText;
                 info.Name = name;
                 info.TrueName = trueName;
                 info.DescriptionIndex = descriptionIndex;
@@ -357,16 +388,30 @@ namespace ClassicUO.Assets
                 }
                 else
                 {
+                    ProfessionInfo parent = null;
+
                     foreach (KeyValuePair<ProfessionInfo, List<ProfessionInfo>> kvp in Professions)
                     {
                         if (kvp.Key.Children != null && kvp.Value != null && kvp.Key.Children.Contains(trueName))
                         {
-                            Professions[kvp.Key].Add(info);
-
-                            result = true;
+                            parent = kvp.Key;
 
                             break;
                         }
+                    }
+
+                    if (parent != null)
+                    {
+                        Professions[parent].Add(info);
+                        info.ParentCategory = parent;
+
+                        result = true;
+                    }
+
+                    // A folder inside a folder holds its own children (the August 1999 tree is two levels deep).
+                    if (type == PROF_TYPE.CATEGORY && list != null)
+                    {
+                        Professions[info] = list;
                     }
                 }
             }
@@ -400,7 +445,8 @@ namespace ClassicUO.Assets
             TRUE,
             CATEGORY,
             NAME_CLILOC_ID,
-            DESCRIPTION_CLILOC_ID
+            DESCRIPTION_CLILOC_ID,
+            DESCRIPTION_TEXT
         }
     }
 }
