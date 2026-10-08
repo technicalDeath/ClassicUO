@@ -239,6 +239,34 @@ namespace ClassicUO.Game.Data
             {
                 _table = _defaultTable;
             }
+
+            AppendExtraIcons(Path.Combine(path, "buff-extra.txt"));
+        }
+
+        /// <summary>
+        /// Icons the server defines beyond the stock list (ids after the last stock one): one gump id per line in buff-extra.txt, line k
+        /// being the icon after the stock table's k-th entry past its end. The shard ships its own art for them in the Gumps folder.
+        /// </summary>
+        private static void AppendExtraIcons(string file)
+        {
+            if (!File.Exists(file))
+            {
+                return;
+            }
+
+            var table = new List<ushort>(_table);
+
+            foreach (string line in File.ReadAllLines(file))
+            {
+                string text = line.Trim();
+
+                if (text.Length > 0 && text[0] != '#' && text[0] != ';' && ushort.TryParse(text, out ushort graphic))
+                {
+                    table.Add(graphic);
+                }
+            }
+
+            _table = table.ToArray();
         }
 
         private static ushort[] _defaultTable =

@@ -131,25 +131,36 @@ namespace ClassicUO.Assets
         {
             _ours.Clear();
 
-            string folder = Path.Combine(FileManager.BasePath, "Gumps");
-
-            if (!Directory.Exists(folder))
+            // The Ultima Online folder is the player's own install, which the shard cannot ship files into; the client's own Data folder
+            // is what the shard distributes (profiles, buff table), so art for the shard's own icons lives there, and wins on a clash.
+            string[] folders =
             {
-                return;
-            }
+                Path.Combine(FileManager.BasePath, "Gumps"),
+                Path.Combine(Environment.CurrentDirectory, "Data", "Gumps")
+            };
 
-            foreach (string path in Directory.EnumerateFiles(folder, "*.gump"))
+            foreach (string folder in folders)
             {
-                if (int.TryParse(Path.GetFileNameWithoutExtension(path), out int id)
-                    && id >= 0 && id < MAX_GUMP_DATA_INDEX_COUNT)
+                if (!Directory.Exists(folder))
                 {
-                    _ours[id] = path;
+                    continue;
                 }
-            }
 
-            if (_ours.Count > 0)
-            {
-                Log.Trace($"{_ours.Count} gump(s) of our own in {folder}");
+                int before = _ours.Count;
+
+                foreach (string path in Directory.EnumerateFiles(folder, "*.gump"))
+                {
+                    if (int.TryParse(Path.GetFileNameWithoutExtension(path), out int id)
+                        && id >= 0 && id < MAX_GUMP_DATA_INDEX_COUNT)
+                    {
+                        _ours[id] = path;
+                    }
+                }
+
+                if (_ours.Count > before)
+                {
+                    Log.Trace($"{_ours.Count - before} gump(s) of our own in {folder}");
+                }
             }
         }
 

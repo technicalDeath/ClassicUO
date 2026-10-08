@@ -89,8 +89,14 @@ namespace ClassicUO.Assets
         /// </summary>
         private void ReadOurs()
         {
-            string path = FileManager.GetUOFilePath("Clilocs.txt");
+            // The Ultima Online folder is the player's own install, which a shard cannot ship files into; the client's own Data/Client
+            // folder is what the shard distributes, so a file there is read too, last, and wins on a clash.
+            ReadOursFrom(FileManager.GetUOFilePath("Clilocs.txt"));
+            ReadOursFrom(Path.Combine(Environment.CurrentDirectory, "Data", "Client", "Clilocs.txt"));
+        }
 
+        private void ReadOursFrom(string path)
+        {
             if (!File.Exists(path))
             {
                 return;

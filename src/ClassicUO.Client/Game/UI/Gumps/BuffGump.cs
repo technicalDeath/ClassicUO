@@ -313,7 +313,7 @@ namespace ClassicUO.Game.UI.Gumps
                 WantUpdateSize = false;
                 CanMove = true;
 
-                SetTooltip(icon.Text + $"\nID: {icon.Type}");
+                SetTooltip(icon.Text);
             }
 
             public BuffIcon Icon { get; }
@@ -333,7 +333,7 @@ namespace ClassicUO.Game.UI.Gumps
                         SetTooltip(
                             string.Format(
                                 ResGumps.TimeLeft,
-                                Icon.Text + $"\nID: {Icon.Type}",
+                                Icon.Text,
                                 span.Hours,
                                 span.Minutes,
                                 span.Seconds
