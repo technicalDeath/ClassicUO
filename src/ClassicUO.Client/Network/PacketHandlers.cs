@@ -3708,6 +3708,9 @@ namespace ClassicUO.Network
                 return;
             }
 
+            // A Knocked Out player is already drawn on the ground: let the death animation end at once, rather than stand them up to fall again.
+            bool wasLying = owner.IsLying;
+
             serial |= 0x80000000;
 
             if (world.Mobiles.Remove(owner.Serial))
@@ -3740,7 +3743,7 @@ namespace ClassicUO.Network
                 true
             );
             owner.SetAnimation(group, 0, 5, 1);
-            owner.AnimIndex = 0;
+            owner.AnimIndex = wasLying ? (byte)0xFF : (byte)0;
 
             if (ProfileManager.CurrentProfile.AutoOpenCorpses)
             {
@@ -5529,7 +5532,7 @@ namespace ClassicUO.Network
                         string title = Client.Game.UO.FileManager.Clilocs.Translate(
                             (int)titleCliloc,
                             args,
-                            true
+                            false
                         );
 
                         arg_length = p.ReadUInt16BE();
@@ -5543,7 +5546,7 @@ namespace ClassicUO.Network
                                 + Client.Game.UO.FileManager.Clilocs.Translate(
                                     (int)descriptionCliloc,
                                     String.IsNullOrEmpty(args_2) ? args : args_2,
-                                    true
+                                    false
                                 );
 
                             if (description.Length < 2)
@@ -5561,7 +5564,7 @@ namespace ClassicUO.Network
                             wtf = Client.Game.UO.FileManager.Clilocs.Translate(
                                 (int)wtfCliloc,
                                 String.IsNullOrEmpty(args_3) ? args : args_3,
-                                true
+                                false
                             );
 
                             if (!string.IsNullOrWhiteSpace(wtf))

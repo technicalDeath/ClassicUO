@@ -568,10 +568,80 @@ namespace ClassicUO.Game.GameObjects
             }
         }
 
+        private bool _lyingApplied;
+
+        /// <summary>The server has marked this living human as lying down (see <see cref="LyingPose"/>).</summary>
+        public bool IsLying => LyingPose.ShouldLie((byte)Flags, Graphic, Serial, IsDead);
+
+        /// <summary>
+        /// Plays the fall once when the mark appears, holds the last frame while it stays, and plays it backwards once when it goes.
+        /// Returns true while the mobile is held, so the ordinary animation is skipped.
+        /// </summary>
+        private bool ProcessLyingAnimation(byte dir)
+        {
+            bool lying = IsLying;
+
+            if (lying != _lyingApplied)
+            {
+                _lyingApplied = lying;
+
+                if (lying)
+                {
+                    SetAnimation(LyingPose.Group, 0, 0, 0, false, true, true);
+                }
+                else if ((Serial & 0x80000000) != 0)
+                {
+                    // The dying copy: DisplayDeath has just set its own animation.
+                }
+                else if (IsDead || !LyingPose.IsLyingBody(Graphic))
+                {
+                    SetAnimation(0xFF);
+                }
+                else
+                {
+                    SetAnimation(LyingPose.Group, 0, LyingPose.FrameCount, 1, false, false, true);
+                }
+            }
+
+            if (!lying)
+            {
+                return false;
+            }
+
+            if (_animationGroup != LyingPose.Group)
+            {
+                SetAnimation(LyingPose.Group, 0, 0, 0, false, true, true);
+            }
+
+            if (LastAnimationChangeTime >= Time.Ticks)
+            {
+                return true;
+            }
+
+            var animations = Client.Game.UO.Animations;
+            ushort id = GetGraphicForAnimation();
+            bool mirror = false;
+            animations.GetAnimDirection(ref dir, ref mirror);
+
+            int frameCount = id < animations.MaxAnimationCount && dir < 5
+                ? animations.GetAnimationFrames(id, GetGroupForAnimation(this, id, true), dir, out _, out _).Length
+                : 0;
+
+            AnimIndex = (byte)LyingPose.NextFrame(AnimIndex, frameCount > 0 ? frameCount : LyingPose.FrameCount);
+            LastAnimationChangeTime = Time.Ticks + Constants.CHARACTER_ANIMATION_DELAY * 2;
+
+            return true;
+        }
+
         public override void ProcessAnimation(bool evalutate = false)
         {
             ProcessSteps(out var dir, evalutate);
             ProcessFootstepsSound();
+
+            if (ProcessLyingAnimation(dir))
+            {
+                return;
+            }
 
             if (LastAnimationChangeTime >= Time.Ticks || NoIterateAnimIndex())
             {
