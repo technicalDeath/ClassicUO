@@ -160,6 +160,17 @@ namespace ClassicUO.Configuration
         [JsonConverter(typeof(Point2Converter))] public Point GameWindowPosition { get; set; } = new Point(10, 10);
         public bool GameWindowLock { get; set; }
         public bool GameWindowFullSize { get; set; }
+
+        /// <summary>
+        /// For a NEW profile only: start the game window at this share (0 to 1) of the client window instead of the fixed 600 x 480
+        /// (Data/Profiles/default.json carries it). The game scene applies it once, in the world, after the client window has settled at
+        /// its real size (a new install starts maximized, so the size is not known when the profile is created), and then clears it; the
+        /// saved profile keeps the size it produced. 0 leaves the size alone.
+        /// </summary>
+        public double GameWindowStartFraction { get; set; }
+
+        /// <summary>The buff window has been opened for this character once on its own. After that it stays as the player leaves it (a saved gump comes back, a closed one stays closed).</summary>
+        public bool BuffWindowOffered { get; set; }
         public bool WindowBorderless { get; set; } = false;
         [JsonConverter(typeof(Point2Converter))] public Point GameWindowSize { get; set; } = new Point(600, 480);
         [JsonConverter(typeof(Point2Converter))] public Point TopbarGumpPosition { get; set; } = new Point(0, 0);

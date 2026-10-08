@@ -713,6 +713,72 @@ namespace ClassicUO.Game.Scenes
             }
         }
 
+        /// <summary>Opens the buff window once for a character that has never had it, so a new player sees the effects on them without finding the orb in the Status window first.</summary>
+        private void OfferBuffWindow(Profile profile)
+        {
+            if (profile.BuffWindowOffered)
+            {
+                return;
+            }
+
+            profile.BuffWindowOffered = true;
+
+            // A saved window comes back on login, before the first update; that one is the player's own.
+            if (UIManager.GetGump<BuffGump>() == null)
+            {
+                UIManager.Add(new BuffGump(_world, 20, 70));
+            }
+        }
+
+        private Point _startShareWindowSize;
+        private int _startShareStableFrames;
+
+        /// <summary>
+        /// A new profile whose default asked for a share of the window (game_window_start_fraction): wait until the client window has kept one
+        /// size for half a second, which is when it has finished maximizing or resizing for the world, then size the game window to that share.
+        /// Done once; the profile then keeps the size like any other.
+        /// </summary>
+        private void ApplyStartGameWindowShare(Profile profile)
+        {
+            if (profile.GameWindowStartFraction <= 0.0)
+            {
+                return;
+            }
+
+            Rectangle bounds = Client.Game.Window.ClientBounds;
+            Point window = new Point(bounds.Width, bounds.Height);
+
+            if (window != _startShareWindowSize)
+            {
+                _startShareWindowSize = window;
+                _startShareStableFrames = 0;
+
+                return;
+            }
+
+            if (++_startShareStableFrames < 30)
+            {
+                return;
+            }
+
+            Point size = ProfileManager.StartGameWindowSize(profile.GameWindowStartFraction, window.X, window.Y, profile.GameWindowSize);
+            profile.GameWindowStartFraction = 0;
+            profile.GameWindowFullSize = false;
+
+            WorldViewportGump viewport = UIManager.GetGump<WorldViewportGump>();
+
+            if (viewport != null)
+            {
+                Point applied = viewport.ResizeGameWindow(size);
+                profile.GameWindowSize = applied;
+
+                if (Client.Game.UO.Version >= ClientVersion.CV_200)
+                {
+                    NetClient.Socket.Send_GameWindowSize((uint) applied.X, (uint) applied.Y);
+                }
+            }
+        }
+
         public override void Update()
         {
             Profile currentProfile = ProfileManager.CurrentProfile;
@@ -742,6 +808,9 @@ namespace ClassicUO.Game.Scenes
             {
                 return;
             }
+
+            ApplyStartGameWindowShare(currentProfile);
+            OfferBuffWindow(currentProfile);
 
             if (Time.Ticks > _timePing)
             {

@@ -61,6 +61,24 @@ namespace ClassicUO.Configuration
             return ConfigurationResolver.Load<Profile>(Path.Combine(RootPath, "default.json"), ProfileJsonContext.DefaultToUse.Profile) ?? new Profile();
         }
 
+        /// <summary>
+        /// The game window a new profile starts with when its default asks for a share of the client window: that share of each side, never
+        /// smaller than the smallest game window the client allows (640 x 480) and never larger than the window. Zero (no share asked for,
+        /// or a share outside 0 to 1, or an unknown window) leaves the size alone.
+        /// </summary>
+        public static Point StartGameWindowSize(double fraction, int windowWidth, int windowHeight, Point current)
+        {
+            if (fraction <= 0.0 || fraction > 1.0 || windowWidth <= 0 || windowHeight <= 0)
+            {
+                return current;
+            }
+
+            return new Point(
+                Math.Min(windowWidth, Math.Max(640, (int) (windowWidth * fraction))),
+                Math.Min(windowHeight, Math.Max(480, (int) (windowHeight * fraction)))
+            );
+        }
+
         private static void ValidateFields(Profile profile)
         {
             if (profile == null)
