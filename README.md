@@ -51,6 +51,10 @@ Binaries available in `bin/dist` folder
 > [!WARNING] 
 > To execute .sh scripts on Windows, use Git Bash which can be installed with Git itself: https://git-scm.com/download/win
 
+# Britannia Renaissance roadmap
+Shard-specific player-client changes planned for this fork are tracked in [ROADMAP.md](ROADMAP.md).
+Roadmap entries are not shipped features until they are marked Complete with verification evidence.
+
 # Contribute
 Everyone is welcome to contribute! The GitHub issues and project tracker are kept up to date with tasks that need work.
 
