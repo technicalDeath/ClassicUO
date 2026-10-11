@@ -279,11 +279,18 @@ namespace ClassicUO.Game.UI
 
             //if (Text != text)
             {
+                // A tooltip that is already on screen keeps showing while its text is refreshed (a buff icon rewrites its time left every second);
+                // only a tooltip that is not showing yet waits the display delay, or it would blink off for the delay each time.
+                var showing = Text != null && _lastHoverTime <= Time.Ticks;
+
                 _maxWidth = maxWidth;
                 Serial = 0;
                 Text = _textHTML = text;
 
-                _lastHoverTime = (uint) (Time.Ticks + (ProfileManager.CurrentProfile != null ? ProfileManager.CurrentProfile.TooltipDelayBeforeDisplay : 250));
+                if (!showing)
+                {
+                    _lastHoverTime = (uint) (Time.Ticks + (ProfileManager.CurrentProfile != null ? ProfileManager.CurrentProfile.TooltipDelayBeforeDisplay : 250));
+                }
             }
         }
     }
