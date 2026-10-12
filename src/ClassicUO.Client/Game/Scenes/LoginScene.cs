@@ -66,6 +66,7 @@ namespace ClassicUO.Game.Scenes
         public override void Load()
         {
             base.Load();
+            TopBarGump.ResetShardMask();
 
             Client.Game.Window.AllowUserResizing = false;
 

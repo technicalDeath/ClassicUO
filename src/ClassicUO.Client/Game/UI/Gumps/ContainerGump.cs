@@ -180,6 +180,9 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(_gumpPicContainer = new GumpPicContainer(0, 0, g, 0));
             _gumpPicContainer.MouseDoubleClick += GumpPicContainerOnMouseDoubleClick;
+            _gumpPicContainer.Scale = scale;
+            _gumpPicContainer.BaseScale = (IsChessboard || IsBackgammonBoard) ? 1f : UIManager.ContainerScale;
+            _gumpPicContainer.NineSlice = IsBigPack && g == GumpPicContainer.BackpackGraphic;
 
             if (Graphic == CORPSES_GUMP)
             {
@@ -196,6 +199,8 @@ namespace ClassicUO.Game.UI.Gumps
 
             Width = _gumpPicContainer.Width = (int)(_gumpPicContainer.Width * scale);
             Height = _gumpPicContainer.Height = (int)(_gumpPicContainer.Height * scale);
+
+            AddSizeToggle();
         }
 
         private void HitBoxOnMouseUp(object sender, MouseEventArgs e)
@@ -368,7 +373,7 @@ namespace ClassicUO.Game.UI.Gumps
                                 : ref Client.Game.UO.Arts.GetArt(Client.Game.UO.GameCursor.ItemHold.DisplayedGraphic)
                         );
 
-                        float scale = GetScale();
+                        float scale = gump.GetScale();
 
                         containerBounds.X = (int)(containerBounds.X * scale);
                         containerBounds.Y = (int)(containerBounds.Y * scale);
@@ -524,9 +529,97 @@ namespace ClassicUO.Game.UI.Gumps
             Dispose();
         }
 
+        /// <summary>How much larger the big main pack is than an ordinary container window.</summary>
+        public const float BigPackFactor = 1.5f;
+
+        private bool IsMainPack
+        {
+            get
+            {
+                Item item = World.Items.Get(LocalSerial);
+
+                return item != null && World.Player != null && item == World.Player.FindItemByLayer(Layer.Backpack);
+            }
+        }
+
+        private bool IsBigPack =>
+            ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.BigBackpack && IsMainPack;
+
         private float GetScale()
         {
-            return (IsChessboard || IsBackgammonBoard) ? 1f : UIManager.ContainerScale;
+            return (IsChessboard || IsBackgammonBoard) ? 1f : UIManager.ContainerScale * (IsBigPack ? BigPackFactor : 1f);
+        }
+
+        /// <summary>The shard's own art for the size button: a brass diamond with a plus (make it larger) or a minus (make it smaller), see ShardContent/tools/gump-art/make_pack_icons.py.</summary>
+        private const ushort LargerIcon = 62050;
+
+        private const ushort SmallerIcon = 62051;
+
+        private GumpPic _sizeIcon;
+        private HitBox _sizeHit;
+
+        private void AddSizeToggle()
+        {
+            _sizeIcon?.Dispose();
+            _sizeHit?.Dispose();
+            _sizeIcon = null;
+            _sizeHit = null;
+
+            if (!IsMainPack || IsChessboard || IsBackgammonBoard)
+            {
+                return;
+            }
+
+            float baseScale = UIManager.ContainerScale;
+
+            _sizeIcon = new GumpPic(0, 0, IsBigPack ? SmallerIcon : LargerIcon, 0)
+            {
+                AcceptMouseInput = false
+            };
+
+            if (_sizeIcon.Width <= 0)
+            {
+                _sizeIcon.Dispose();
+                _sizeIcon = null;
+
+                return; // the shard's art is not installed in this client: no button rather than an empty one
+            }
+
+            _sizeIcon.Width = (int)(_sizeIcon.Width * baseScale);
+            _sizeIcon.Height = (int)(_sizeIcon.Height * baseScale);
+            _sizeIcon.X = (int)(Width - 46 * baseScale - _sizeIcon.Width);
+            _sizeIcon.Y = (int)(12 * baseScale);
+
+            _sizeHit = new HitBox(_sizeIcon.X, _sizeIcon.Y, _sizeIcon.Width, _sizeIcon.Height);
+            _sizeHit.MouseUp += SizeHitOnMouseUp;
+            _sizeHit.SetTooltip(IsBigPack ? "Make this pack smaller" : "Make this pack larger");
+
+            Add(_sizeHit);
+            Add(_sizeIcon);
+        }
+
+        private void SizeHitOnMouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtonType.Left || Client.Game.UO.GameCursor.ItemHold.Enabled)
+            {
+                return;
+            }
+
+            Point offset = Mouse.LDragOffset;
+
+            if (
+                Math.Abs(offset.X) >= Constants.MIN_PICKUP_DRAG_DISTANCE_PIXELS
+                || Math.Abs(offset.Y) >= Constants.MIN_PICKUP_DRAG_DISTANCE_PIXELS
+            )
+            {
+                return;
+            }
+
+            ProfileManager.CurrentProfile.BigBackpack = !ProfileManager.CurrentProfile.BigBackpack;
+            ProfileManager.CurrentProfile.Save(World, ProfileManager.ProfilePath);
+
+            UpdateContents(); // rebuilds the window and puts every item at its position times the new scale
+            SetInScreen();
         }
 
         private void ItemsOnAdded()
@@ -747,18 +840,160 @@ namespace ClassicUO.Game.UI.Gumps
 
         private class GumpPicContainer : GumpPic
         {
+            public const ushort BackpackGraphic = 0x003C;
+
             public GumpPicContainer(int x, int y, ushort graphic, ushort hue)
                 : base(x, y, graphic, hue) { }
 
+            /// <summary>The window's total scale (the container scale times the big-pack factor).</summary>
+            public float Scale { get; set; } = 1f;
+
+            /// <summary>The container scale alone: the parts of the nine-slice that keep their size are drawn at this scale.</summary>
+            public float BaseScale { get; set; } = 1f;
+
+            public bool NineSlice { get; set; }
+
+            private bool Slicing => NineSlice && Graphic == BackpackGraphic;
+
             public override bool Contains(int x, int y)
             {
-                float scale =
-                    Graphic == 0x091A || Graphic == 0x092E ? 1f : UIManager.ContainerScale;
+                if (Slicing)
+                {
+                    return x >= 0 && y >= 0 && x < Width && y < Height;
+                }
+
+                float scale = Graphic == 0x091A || Graphic == 0x092E ? 1f : Scale;
 
                 x = (int)(x / scale);
                 y = (int)(y / scale);
 
                 return base.Contains(x, y);
+            }
+
+            // The backpack art is 229 x 210: a flap on top with a loop, a lip with the buckle at the bottom, strap handles on each side and a seam down the middle. Only the leather
+            // between those is stretched. Columns (fractions of the width): left edge, stretch, middle (loop, seam, buckle), stretch, right edge. Rows in the middle columns: flap,
+            // stretch, lip. Rows in the edge columns: flap and handles, stretch, lip. Measured from the art in the real client.
+            private static readonly float[] ColumnEdges = { 0f, 0.175f, 0.41f, 0.59f, 0.825f, 1f };
+            private static readonly bool[] ColumnStretches = { false, true, false, true, false };
+            private static readonly float[] MiddleRowEdges = { 0f, 0.262f, 0.762f, 1f };
+            private static readonly float[] EdgeRowEdges = { 0f, 0.595f, 0.762f, 1f };
+            private static readonly bool[] RowStretches = { false, true, false };
+
+            /// <summary>Where each piece starts in a span of <paramref name="total"/> pixels: the fixed pieces keep their size (times <paramref name="fixedScale"/>) and the stretching pieces share what is left in proportion to their original size.</summary>
+            private static int[] Layout(int source, float[] edges, bool[] stretches, float fixedScale, int total)
+            {
+                float fixedSize = 0f;
+                float stretchSource = 0f;
+
+                for (int i = 0; i < stretches.Length; i++)
+                {
+                    float size = (edges[i + 1] - edges[i]) * source;
+
+                    if (stretches[i])
+                    {
+                        stretchSource += size;
+                    }
+                    else
+                    {
+                        fixedSize += size * fixedScale;
+                    }
+                }
+
+                float stretchTotal = Math.Max(0f, total - fixedSize);
+                var result = new int[stretches.Length + 1];
+                float position = 0f;
+
+                for (int i = 0; i < stretches.Length; i++)
+                {
+                    float size = (edges[i + 1] - edges[i]) * source;
+                    position += stretches[i] ? size / stretchSource * stretchTotal : size * fixedScale;
+                    result[i + 1] = (int)Math.Round(position);
+                }
+
+                result[stretches.Length] = total;
+
+                return result;
+            }
+
+            public override bool AddToRenderLists(RenderLists renderLists, int x, int y, ref float layerDepthRef)
+            {
+                if (!Slicing || IsDisposed)
+                {
+                    return base.AddToRenderLists(renderLists, x, y, ref layerDepthRef);
+                }
+
+                float layerDepth = layerDepthRef;
+                Vector3 hueVector = ShaderHueTranslator.GetHueVector(Hue, IsPartialHue, Alpha, true);
+                ref readonly var gumpInfo = ref Client.Game.UO.Gumps.GetGump(Graphic);
+
+                if (gumpInfo.Texture != null)
+                {
+                    var texture = gumpInfo.Texture;
+                    Rectangle source = gumpInfo.UV;
+                    int width = Width;
+                    int height = Height;
+                    float baseScale = BaseScale;
+
+                    renderLists.AddGumpWithAtlas(
+                        batcher =>
+                        {
+                            int[] sourceX = new int[ColumnEdges.Length];
+
+                            for (int i = 0; i < ColumnEdges.Length; i++)
+                            {
+                                sourceX[i] = (int)(ColumnEdges[i] * source.Width);
+                            }
+
+                            sourceX[ColumnEdges.Length - 1] = source.Width;
+
+                            int[] destinationX = Layout(source.Width, ColumnEdges, ColumnStretches, baseScale, width);
+
+                            for (int column = 0; column < ColumnStretches.Length; column++)
+                            {
+                                bool edge = column == 0 || column == ColumnStretches.Length - 1;
+                                float[] rows = edge ? EdgeRowEdges : MiddleRowEdges;
+                                int[] sourceY = new int[rows.Length];
+
+                                for (int i = 0; i < rows.Length; i++)
+                                {
+                                    sourceY[i] = (int)(rows[i] * source.Height);
+                                }
+
+                                sourceY[rows.Length - 1] = source.Height;
+
+                                int[] destinationY = Layout(source.Height, rows, RowStretches, baseScale, height);
+
+                                for (int row = 0; row < RowStretches.Length; row++)
+                                {
+                                    int destinationWidth = destinationX[column + 1] - destinationX[column];
+                                    int destinationHeight = destinationY[row + 1] - destinationY[row];
+
+                                    if (destinationWidth <= 0 || destinationHeight <= 0)
+                                    {
+                                        continue;
+                                    }
+
+                                    batcher.Draw(
+                                        texture,
+                                        new Rectangle(x + destinationX[column], y + destinationY[row], destinationWidth, destinationHeight),
+                                        new Rectangle(
+                                            source.X + sourceX[column],
+                                            source.Y + sourceY[row],
+                                            sourceX[column + 1] - sourceX[column],
+                                            sourceY[row + 1] - sourceY[row]
+                                        ),
+                                        hueVector,
+                                        layerDepth
+                                    );
+                                }
+                            }
+
+                            return true;
+                        }
+                    );
+                }
+
+                return true;
             }
         }
     }

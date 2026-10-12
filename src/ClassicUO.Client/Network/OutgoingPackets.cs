@@ -3529,6 +3529,36 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
+        /// <summary>Asks the shard which strength each of these potions is (extended command 0xA7; the shard answers with the same command).</summary>
+        public static void Send_PotionStrengthRequest(this NetClient socket, List<uint> serials)
+        {
+            const byte ID = 0xBF;
+
+            var writer = new StackDataWriter(8 + serials.Count * 4);
+
+            writer.WriteUInt8(ID);
+            writer.WriteZero(2);
+            writer.WriteUInt16BE(0xA7);
+            writer.WriteUInt8((byte) serials.Count);
+
+            foreach (uint serial in serials)
+            {
+                writer.WriteUInt32BE(serial);
+            }
+
+            writer.Seek(1, SeekOrigin.Begin);
+            writer.WriteUInt16BE((ushort) writer.BytesWritten);
+
+            socket.Send(writer.BufferWritten);
+            writer.Dispose();
+        }
+
+        /// <summary>Asks the shard which top bar buttons to show (MenuBarService, command 0xA8); the answer is the same command.</summary>
+        public static void Send_MenuBarRequest(this NetClient socket)
+        {
+            socket.Send(new byte[] { 0xBF, 0, 5, 0, 0xA8 });
+        }
+
         public static void Send_ToggleGargoyleFlying(this NetClient socket)
         {
             const byte ID = 0xBF;

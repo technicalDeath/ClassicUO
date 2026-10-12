@@ -110,6 +110,28 @@ namespace ClassicUO.Configuration
         public bool UseOldStatusGump { get; set; }
         public bool StatusGumpBarMutuallyExclusive { get; set; } = true;
         public int BackpackStyle { get; set; }
+
+        /// <summary>The main backpack window is drawn 50% larger (nine-sliced), with the items' positions scaled to match; a button on the pack switches it.</summary>
+        public bool BigBackpack { get; set; }
+
+        /// <summary>The shard's potion bar under the game window (default-profile.json turns it on for new profiles).</summary>
+        public bool PotionBarEnabled { get; set; }
+
+        /// <summary>The potion bar's state: 0 every potion, 1 only the potions the player has, 2 docked to a small bar with an empty bottle.</summary>
+        public int PotionBarMode { get; set; }
+
+        /// <summary>The shard's combat bar under the potion bar: bandages, ammunition, reagents and the last two weapons or tools held.</summary>
+        public bool CombatBarEnabled { get; set; }
+
+        /// <summary>The combat bar's state: 0 every item, 1 only the items the player has, 2 docked to one small icon.</summary>
+        public int CombatBarMode { get; set; }
+
+        /// <summary>Serials of the weapon, the shield and the tool held last.</summary>
+        public uint CombatBarMain { get; set; }
+
+        public uint CombatBarShield { get; set; }
+
+        public uint CombatBarTool { get; set; }
         public bool HighlightGameObjects { get; set; }
         public bool HighlightMobilesByParalize { get; set; } = true;
         public bool HighlightMobilesByPoisoned { get; set; } = true;
@@ -234,6 +256,9 @@ namespace ClassicUO.Configuration
         public int InfoBarHighlightType { get; set; } // 0 = text colour changes, 1 = underline
 
         public bool CounterBarEnabled { get; set; }
+
+        /// <summary>A new profile gets one blank hotbar (the counter bar) opened beside the game window, so a new player sees that it can be filled; set once it has been.</summary>
+        public bool CounterBarOffered { get; set; }
         public bool CounterBarHighlightOnChange { get; set; } = true;
         public bool CounterBarHighlightOnAmount { get; set; }
         public bool CounterBarDisplayAbbreviatedAmount { get; set; }

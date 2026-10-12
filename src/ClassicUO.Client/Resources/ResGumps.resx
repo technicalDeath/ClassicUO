@@ -124,7 +124,7 @@
     <value>Containers</value>
   </data>
   <data name="Counters" xml:space="preserve">
-    <value>Counters</value>
+    <value>Item shortcuts</value>
   </data>
   <data name="Experimental" xml:space="preserve">
     <value>Experimental</value>
@@ -639,7 +639,7 @@ Murderers, Criminals, Grays (Monsters/Animals)</value>
     <value>Spell Overhead format: ({power} for powerword - {spell} for spell name)</value>
   </data>
   <data name="EnableCounters" xml:space="preserve">
-    <value>Enable Counters</value>
+    <value>Enable item shortcuts</value>
   </data>
   <data name="HighlightOnChange" xml:space="preserve">
     <value>Highlight On Change</value>
@@ -652,7 +652,7 @@ when amount is or exceeds</value>
     <value>Highlight red when amount is below</value>
   </data>
   <data name="CounterLayout" xml:space="preserve">
-    <value>Counter Layout:</value>
+    <value>Shortcut layout:</value>
   </data>
   <data name="CellSize" xml:space="preserve">
     <value>Cell size:</value>
@@ -1656,7 +1656,7 @@ Client version: '{0}'</value>
   </data>
   <data name="CounterEmptyHelpText" xml:space="preserve">
     <value>Drop an item here to
-start your first counter</value>
+make an item shortcut</value>
   </data>
   <data name="Prompt" xml:space="preserve">
     <value>[Prompt]:</value>

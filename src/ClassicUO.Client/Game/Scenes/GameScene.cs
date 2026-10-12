@@ -123,6 +123,16 @@ namespace ClassicUO.Game.Scenes
                 TopBarGump.Create(_world);
             }
 
+            if (ProfileManager.CurrentProfile.PotionBarEnabled)
+            {
+                UIManager.Add(new PotionBarGump(_world));
+            }
+
+            if (ProfileManager.CurrentProfile.CombatBarEnabled)
+            {
+                UIManager.Add(new CombatBarGump(_world));
+            }
+
             NetClient.Socket.Disconnected += SocketOnDisconnected;
             _world.MessageManager.MessageReceived += ChatOnMessageReceived;
             UIManager.ContainerScale = ProfileManager.CurrentProfile.ContainersScale / 100f;
@@ -777,6 +787,32 @@ namespace ClassicUO.Game.Scenes
                     NetClient.Socket.Send_GameWindowSize((uint) applied.X, (uint) applied.Y);
                 }
             }
+
+            OfferBlankHotbar(profile);
+        }
+
+        /// <summary>
+        /// The shard's default profile turns the counter bar on: a blank hotbar, which shows its own hint about dropping an item into it, is opened once beside the game window
+        /// so a new player can see the bar exists and can be customised. After that it is the player's: closing it or turning it off stays that way.
+        /// </summary>
+        private void OfferBlankHotbar(Profile profile)
+        {
+            if (!profile.CounterBarEnabled || profile.CounterBarOffered)
+            {
+                return;
+            }
+
+            profile.CounterBarOffered = true;
+
+            if (UIManager.GetGump<CounterBarGump>() != null)
+            {
+                return;
+            }
+
+            Rectangle area = Camera.Bounds;
+            var bar = new CounterBarGump(_world, area.Right + 12, area.Y + 8, profile.CounterBarCellSize);
+            UIManager.Add(bar);
+            bar.SetInScreen();
         }
 
         public override void Update()

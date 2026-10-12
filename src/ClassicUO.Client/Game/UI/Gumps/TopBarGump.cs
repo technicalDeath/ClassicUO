@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-2-Clause
 
 using System.Collections.Generic;
 using ClassicUO.Configuration;
@@ -7,6 +7,7 @@ using ClassicUO.Game.GameObjects;
 using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
+using ClassicUO.IO;
 using ClassicUO.Assets;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
@@ -54,41 +55,51 @@ namespace ClassicUO.Game.UI.Gumps
                 largeWidth = gumpInfo.UV.Width;
             }
 
-            int[][] textTable =
-            {
-                new[] { 0, (int)Buttons.Map },
-                new[] { 1, (int)Buttons.Paperdoll },
-                new[] { 1, (int)Buttons.Inventory },
-                new[] { 1, (int)Buttons.Journal },
-                new[] { 0, (int)Buttons.Chat },
-                new[] { 0, (int)Buttons.Help },
-                new[] { 1, (int)Buttons.WorldMap },
-                new[] { 0, (int)Buttons.Info },
-                new[] { 0, (int)Buttons.Debug },
-                new[] { 1, (int)Buttons.NetStats },
-                new[] { 1, (int)Buttons.UOStore },
-                new[] { 1, (int)Buttons.GlobalChat }
-            };
-
             var cliloc = Client.Game.UO.FileManager.Clilocs;
+            var entries = new List<(Buttons Id, bool Large, string Text)>();
 
-            string[] texts =
+            if ((ShardMask & ShardBar) != 0)
             {
-                cliloc.GetString(3000430, ResGumps.Map),
-                cliloc.GetString(3000133, ResGumps.Paperdoll),
-                cliloc.GetString(3000431, ResGumps.Inventory),
-                cliloc.GetString(3000129, ResGumps.Journal),
-                cliloc.GetString(3000131, ResGumps.Chat),
-                cliloc.GetString(3000134, ResGumps.Help),
-                StringHelper.CapitalizeAllWords(cliloc.GetString(1015233, ResGumps.WorldMap)),
-                cliloc.GetString(1079449, ResGumps.Info),
-                cliloc.GetString(1042237, ResGumps.Debug),
-                cliloc.GetString(3000169, ResGumps.NetStats),
-                cliloc.GetString(1158008, ResGumps.UOStore),
-                cliloc.GetString(1158390, ResGumps.GlobalChat)
-            };
+                // the shard's bar: only buttons that do something here, and a feature's button only while the server says the feature is on
+                entries.Add((Buttons.Paperdoll, true, cliloc.GetString(3000133, ResGumps.Paperdoll)));
+                entries.Add((Buttons.Inventory, true, "Backpack"));
+                entries.Add((Buttons.Skills, false, "Skills"));
 
-            bool hasUOStore = Client.Game.UO.Version >= ClientVersion.CV_706400;
+                entries.Add((Buttons.Journal, true, cliloc.GetString(3000129, ResGumps.Journal)));
+                entries.Add((Buttons.Map, false, cliloc.GetString(3000430, ResGumps.Map)));
+
+                if ((ShardMask & CampBit) != 0)
+                {
+                    entries.Add((Buttons.Camp, false, "Camp"));
+                }
+
+                if ((ShardMask & GuildChatBit) != 0)
+                {
+                    entries.Add((Buttons.GuildChat, true, "Guild chat"));
+                }
+
+                entries.Add((Buttons.Help, false, (ShardMask & AboutBit) != 0 ? "About" : cliloc.GetString(3000134, ResGumps.Help)));
+                entries.Add((Buttons.Options, true, "Options"));
+            }
+            else
+            {
+                entries.Add((Buttons.Map, false, cliloc.GetString(3000430, ResGumps.Map)));
+                entries.Add((Buttons.Paperdoll, true, cliloc.GetString(3000133, ResGumps.Paperdoll)));
+                entries.Add((Buttons.Inventory, true, cliloc.GetString(3000431, ResGumps.Inventory)));
+                entries.Add((Buttons.Journal, true, cliloc.GetString(3000129, ResGumps.Journal)));
+                entries.Add((Buttons.Chat, false, cliloc.GetString(3000131, ResGumps.Chat)));
+                entries.Add((Buttons.Help, false, cliloc.GetString(3000134, ResGumps.Help)));
+                entries.Add((Buttons.WorldMap, true, StringHelper.CapitalizeAllWords(cliloc.GetString(1015233, ResGumps.WorldMap))));
+                entries.Add((Buttons.Info, false, cliloc.GetString(1079449, ResGumps.Info)));
+                entries.Add((Buttons.Debug, false, cliloc.GetString(1042237, ResGumps.Debug)));
+                entries.Add((Buttons.NetStats, true, cliloc.GetString(3000169, ResGumps.NetStats)));
+
+                if (Client.Game.UO.Version >= ClientVersion.CV_706400)
+                {
+                    entries.Add((Buttons.UOStore, true, cliloc.GetString(1158008, ResGumps.UOStore)));
+                    entries.Add((Buttons.GlobalChat, true, cliloc.GetString(1158390, ResGumps.GlobalChat)));
+                }
+            }
 
             ResizePic background;
 
@@ -106,22 +117,17 @@ namespace ClassicUO.Game.UI.Gumps
 
             int startX = 30;
 
-            for (int i = 0; i < textTable.Length; i++)
+            foreach (var (id, large, text) in entries)
             {
-                if (!hasUOStore && i >= (int)Buttons.UOStore)
-                {
-                    break;
-                }
-
-                ushort graphic = (ushort)(textTable[i][0] != 0 ? 0x098D : 0x098B);
+                ushort graphic = (ushort)(large ? 0x098D : 0x098B);
 
                 Add(
                     new RighClickableButton(
-                        textTable[i][1],
+                        (int)id,
                         graphic,
                         graphic,
                         graphic,
-                        texts[i],
+                        text,
                         1,
                         true,
                         0,
@@ -136,7 +142,7 @@ namespace ClassicUO.Game.UI.Gumps
                     1
                 );
 
-                startX += (textTable[i][0] != 0 ? largeWidth : smallWidth) + 1;
+                startX += (large ? largeWidth : smallWidth) + 1;
                 background.Width = startX;
             }
 
@@ -147,6 +153,35 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         public bool IsMinimized { get; private set; }
+
+        // The shard's bar (MenuBarService, command 0xA8): until the server's mask arrives, and when it never does, the stock bar is built.
+        public const int Command = 0xA8;
+        private const ushort ShardBar = 1 << 15;
+        private const ushort CampBit = 1 << 1;
+        private const ushort GuildChatBit = 1 << 2;
+        private const ushort AboutBit = 1 << 3;
+
+        private static ushort ShardMask;
+
+        public static void ResetShardMask() => ShardMask = 0;
+
+        public static void OnMaskReply(World world, ref StackDataReader p)
+        {
+            ushort mask = p.Remaining >= 2 ? p.ReadUInt16BE() : (ushort)0;
+
+            if (mask == ShardMask)
+            {
+                return;
+            }
+
+            ShardMask = mask;
+
+            if (UIManager.GetGump<TopBarGump>() is { } bar)
+            {
+                bar.Dispose();
+                Create(world);
+            }
+        }
 
         public static void Create(World world)
         {
@@ -160,6 +195,11 @@ namespace ClassicUO.Game.UI.Gumps
                 )
                 {
                     ProfileManager.CurrentProfile.TopbarGumpPosition = Point.Zero;
+                }
+
+                if (ShardMask == 0 && NetClient.Socket.IsConnected)
+                {
+                    NetClient.Socket.Send_MenuBarRequest();
                 }
 
                 UIManager.Add(
@@ -209,7 +249,40 @@ namespace ClassicUO.Game.UI.Gumps
             switch ((Buttons)buttonID)
             {
                 case Buttons.Map:
-                    GameActions.OpenMiniMap(World);
+                    if ((ShardMask & ShardBar) != 0 && UIManager.GetGump<MiniMapGump>() is { } mini)
+                    {
+                        // the shard bar's one Map button: the mini-map first, the big map on the next click
+                        mini.Dispose();
+                        GameActions.OpenWorldMap(World);
+                    }
+                    else
+                    {
+                        GameActions.OpenMiniMap(World);
+                    }
+
+                    break;
+
+                case Buttons.Skills:
+                    GameActions.OpenSkills(World);
+
+                    break;
+
+                case Buttons.Camp:
+                    GameActions.Say("[CampTravel");
+
+                    break;
+
+                case Buttons.GuildChat:
+                    if (UIManager.SystemChat is { } chat)
+                    {
+                        chat.IsActive = true;
+                        chat.Mode = ChatMode.Guild;
+                    }
+
+                    break;
+
+                case Buttons.Options:
+                    GameActions.OpenSettings(World);
 
                     break;
 
@@ -253,7 +326,14 @@ namespace ClassicUO.Game.UI.Gumps
                     break;
 
                 case Buttons.Help:
-                    GameActions.RequestHelp();
+                    if ((ShardMask & AboutBit) != 0)
+                    {
+                        GameActions.Say("[SkillGuide");
+                    }
+                    else
+                    {
+                        GameActions.RequestHelp();
+                    }
 
                     break;
 
@@ -310,7 +390,11 @@ namespace ClassicUO.Game.UI.Gumps
             Debug,
             NetStats,
             UOStore,
-            GlobalChat
+            GlobalChat,
+            Skills,
+            Camp,
+            GuildChat,
+            Options
         }
 
         private class RighClickableButton : Button

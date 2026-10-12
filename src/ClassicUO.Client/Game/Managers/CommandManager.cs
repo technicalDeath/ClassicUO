@@ -3,7 +3,9 @@
 using System;
 using System.Collections.Generic;
 using ClassicUO.Game.GameObjects;
+using ClassicUO.Game.Managers;
 using ClassicUO.Game.Scenes;
+using ClassicUO.Game.UI.Gumps;
 using ClassicUO.Input;
 using ClassicUO.Resources;
 using ClassicUO.Utility.Logging;
@@ -62,6 +64,25 @@ namespace ClassicUO.Game.Managers
                 }
             );
 
+
+            Register
+            (
+                "netstats",
+                s =>
+                {
+                    NetworkStatsGump gump = UIManager.GetGump<NetworkStatsGump>();
+
+                    if (gump == null)
+                    {
+                        UIManager.Add(new NetworkStatsGump(_world, 100, 100));
+                    }
+                    else
+                    {
+                        gump.IsVisible = !gump.IsVisible;
+                        gump.SetInScreen();
+                    }
+                }
+            );
 
             Register
             (
