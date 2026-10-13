@@ -209,10 +209,14 @@ namespace ClassicUO.Game.Managers
             {
                 NetClient.Socket.Send_TargetCancel(TargetingState, _targetCursorId, (byte)TargetingType);
                 IsTargeting = false;
+                CancelCount++;
             }
 
             Reset();
         }
+
+        /// <summary>How many times a target cursor has been cancelled by the player (or by a new cursor replacing it); the shard's bandage cue uses it to tell a chosen target from a cancelled one.</summary>
+        public int CancelCount { get; private set; }
 
         public void SetTargetingMulti
         (

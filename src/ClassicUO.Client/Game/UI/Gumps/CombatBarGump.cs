@@ -10,6 +10,8 @@ using ClassicUO.Game.Managers;
 using ClassicUO.Game.Scenes;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
+using ClassicUO.Network;
+using ClassicUO.IO;
 using ClassicUO.Renderer;
 using ClassicUO.Utility;
 using Microsoft.Xna.Framework;
@@ -56,6 +58,90 @@ namespace ClassicUO.Game.UI.Gumps
         private const int ActionDelay = 700;      // the server limits how fast actions may follow one another
         private const int StepTimeout = 3000;
         private const int SelfTargetWindow = 2500;
+        /// <summary>The shard's extended command for item durability, both ways (ShardContent CombatBarService).</summary>
+        public const ushort DurabilityCommand = 0xA9;
+
+        /// <summary>Item serial to hit points and maximum hit points, as the server last said. An item the server says nothing about has no gauge.</summary>
+        private static readonly Dictionary<uint, (ushort Hits, ushort Max)> Durability = new();
+
+        public static bool TryGetDurability(uint serial, out (ushort Hits, ushort Max) value) => Durability.TryGetValue(serial, out value) && value.Max > 0;
+
+        public static void OnDurabilityReply(ref StackDataReader p)
+        {
+            int count = p.ReadUInt8();
+
+            for (int i = 0; i < count && p.Remaining >= 8; i++)
+            {
+                uint serial = p.ReadUInt32BE();
+                ushort hits = p.ReadUInt16BE();
+                ushort max = p.ReadUInt16BE();
+                Durability[serial] = (hits, max);
+            }
+        }
+
+        /// <summary>Asks the server about up to eight items; used by the bar for its slots and by the selector for the items it lists.</summary>
+        public static void AskDurability(IEnumerable<uint> serials)
+        {
+            var list = new List<uint>();
+
+            foreach (uint serial in serials)
+            {
+                if (serial != 0 && list.Count < 8 && !list.Contains(serial))
+                {
+                    list.Add(serial);
+                }
+            }
+
+            if (list.Count > 0 && NetClient.Socket.IsConnected)
+            {
+                NetClient.Socket.Send_DurabilityRequest(list);
+            }
+        }
+
+        private const int DurabilityAskMilliseconds = 2500;
+        private long _nextDurabilityAsk;
+
+        /// <summary>A thin gauge: green, with red filling from the top down as the item loses durability.</summary>
+        internal static void DrawDurability(RenderLists renderLists, ushort hits, ushort max, int x, int y, int height, float alpha, float layerDepth)
+        {
+            if (max == 0)
+            {
+                return;
+            }
+
+            float lost = 1f - Math.Clamp(hits / (float)max, 0f, 1f);
+            int red = Math.Clamp((int)Math.Round(height * lost), 0, height);
+            Vector3 hue = ShaderHueTranslator.GetHueVector(0, false, alpha);
+
+            renderLists.AddGumpNoAtlas(
+                batcher =>
+                {
+                    batcher.Draw(SolidColorTextureCache.GetTexture(Color.Black), new Rectangle(x - 1, y - 1, 5, height + 2), hue, layerDepth);
+
+                    if (red < height)
+                    {
+                        batcher.Draw(SolidColorTextureCache.GetTexture(new Color(60, 200, 70)), new Rectangle(x, y + red, 3, height - red), hue, layerDepth);
+                    }
+
+                    if (red > 0)
+                    {
+                        batcher.Draw(SolidColorTextureCache.GetTexture(new Color(215, 40, 40)), new Rectangle(x, y, 3, red), hue, layerDepth);
+                    }
+
+                    return true;
+                }
+            );
+        }
+
+        private const ushort NormalCountHue = 0x0481;
+        private const ushort LowCountHue = 0x0026;   // a warm red
+
+        /// <summary>A stack this size or smaller is running low: bandages and reagents five, ammunition ten.</summary>
+        private static int LowLevel(Kind kind) => kind == Kind.Ammo ? 10 : 5;
+
+        // the arrows a bow shoots and the bolts a crossbow shoots, by the weapon's art
+        private static bool IsBow(Item item) => item.Graphic is 0x13B2 or 0x13B1;
+        private static bool IsCrossbow(Item item) => item.Graphic is 0x0F50 or 0x0F4F or 0x13FD or 0x13FC;
 
         private readonly Dictionary<ushort, int> _counts = new();
         private readonly Dictionary<ushort, uint> _firstOf = new();
@@ -72,6 +158,8 @@ namespace ClassicUO.Game.UI.Gumps
         private const int MainSlot = 0;
         private const int ShieldSlot = 1;
         private const int ToolSlot = 2;
+        private const int WarSlot = 3;      // the war/peace toggle
+        private const int WeightSlot = 4;   // the carried-weight readout
         private static readonly string[] SlotNames = { "weapon", "shield", "tool" };
         private readonly uint[] _slots = new uint[3];
 
@@ -101,6 +189,51 @@ namespace ClassicUO.Game.UI.Gumps
             _slots[ToolSlot] = profile?.CombatBarTool ?? 0;
             Rebuild();
         }
+
+        // ---- shared with the item shortcut bar
+
+        public bool Bandaging => BandageWatch.Active;
+
+        private bool AmmoNotUsed(ushort ammoGraphic) => AmmoNotUsedByHand(World, ammoGraphic);
+
+        /// <summary>Whether the ammunition is the wrong kind for the bow or crossbow in hand. With no ranged weapon in hand both kinds are normal.</summary>
+        internal static bool AmmoNotUsedByHand(World world, ushort ammoGraphic)
+        {
+            if (ammoGraphic != 0x0F3F && ammoGraphic != 0x1BFB)
+            {
+                return false;
+            }
+
+            Item weapon = world.Player.FindItemByLayer(Layer.TwoHanded) is { } two && two.ItemData.IsWeapon ? two : world.Player.FindItemByLayer(Layer.OneHanded);
+
+            if (weapon == null)
+            {
+                return false;
+            }
+
+            if (IsBow(weapon))
+            {
+                return ammoGraphic != 0x0F3F;
+            }
+
+            return IsCrossbow(weapon) && ammoGraphic != 0x1BFB;
+        }
+
+        /// <summary>The stack size at or below which a supply is running low (bandages and reagents 5, ammunition 10), or 0 for an item that is not one of the bar's supplies.</summary>
+        internal static int SupplyLowLevelOf(ushort graphic)
+        {
+            foreach (Supply supply in Supplies)
+            {
+                if (supply.Graphic == graphic)
+                {
+                    return LowLevel(supply.Kind);
+                }
+            }
+
+            return 0;
+        }
+
+        internal const ushort LowHue = LowCountHue;
 
         // ---- layout
 
@@ -184,6 +317,13 @@ namespace ClassicUO.Game.UI.Gumps
             Kind? previousKind = null;
             bool first = true;
 
+            // the war/peace toggle: in front of the supplies
+            var war = new Cell(this, WarSlot) { X = x, Y = Pad };
+            _cells.Add(war);
+            Add(war);
+            x += war.Width + GroupGap;
+            first = false;
+
             foreach (Supply supply in Supplies)
             {
                 if (!ShowsSupply(supply))
@@ -227,6 +367,13 @@ namespace ClassicUO.Game.UI.Gumps
                 x += control.Width + Gap;
                 first = false;
             }
+
+            // the carried-weight readout: after everything else
+            x += GroupGap - Gap;
+            var weight = new Cell(this, WeightSlot) { X = x, Y = Pad };
+            _cells.Add(weight);
+            Add(weight);
+            x += weight.Width + Gap;
 
             Width = Math.Max(x - Gap + Pad, Pad * 2 + IconSize * 2 + Gap);
             Height = BarHeight;
@@ -319,11 +466,18 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (backpack != null)
             {
+                PackPrimer.Tick(World);
                 Collect(backpack);
             }
 
             TrackHeld();
             _usesReagents = UsesReagents();
+
+            if (Time.Ticks >= _nextDurabilityAsk)
+            {
+                _nextDurabilityAsk = Time.Ticks + DurabilityAskMilliseconds;
+                AskDurability(_slots);
+            }
 
             if (!_built || Signature() != _signature)
             {
@@ -407,6 +561,11 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }
 
+            if (changed)
+            {
+                _nextDurabilityAsk = 0;
+            }
+
             if (changed && ProfileManager.CurrentProfile != null)
             {
                 ProfileManager.CurrentProfile.CombatBarMain = _slots[MainSlot];
@@ -428,6 +587,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             _lockUntil = Time.Ticks + ActionDelay;
+            BandageWatch.Start(World);
             _selfTargetUntil = Keyboard.Shift ? 0 : Time.Ticks + SelfTargetWindow;
             GameActions.DoubleClick(World, serial);
         }
@@ -452,17 +612,29 @@ namespace ClassicUO.Game.UI.Gumps
 
         // ---- equipping
 
+        internal static string NameOf(Item item)
+        {
+            string name = string.IsNullOrEmpty(item.Name) ? item.ItemData.Name : item.Name;
+
+            return string.IsNullOrEmpty(name) ? "Item" : StringHelper.CapitalizeAllWords(name);
+        }
+
         private Item SlotItem(int slot)
         {
+            if (slot < 0 || slot >= _slots.Length)
+            {
+                return null;
+            }
+
             uint serial = _slots[slot];
 
             return serial == 0 ? null : World.Items.Get(serial);
         }
 
-        private void Equip(int slot)
-        {
-            Item item = SlotItem(slot);
+        private void Equip(int slot) => Equip(SlotItem(slot));
 
+        private void Equip(Item item)
+        {
             if (item == null || _stage != Stage.Idle || Time.Ticks < _lockUntil || Client.Game.UO.GameCursor.ItemHold.Enabled)
             {
                 return;
@@ -490,6 +662,76 @@ namespace ClassicUO.Game.UI.Gumps
             _stage = Stage.Clearing;
             _nextAt = Time.Ticks;
             _deadline = Time.Ticks + StepTimeout * 2;
+        }
+
+        // ---- the item selector
+
+        private const int HoldMilliseconds = 450;
+
+        private void CollectCandidates(Item container, int slot, List<Item> found)
+        {
+            for (LinkedObject i = container.Items; i != null; i = i.Next)
+            {
+                var item = (Item)i;
+                var layer = (Layer)item.ItemData.Layer;
+
+                if ((layer == Layer.OneHanded || layer == Layer.TwoHanded) && SlotOf(item) == slot)
+                {
+                    if (!IsHeld(item))
+                    {
+                        found.Add(item);
+                    }
+                }
+                else if (item.ItemData.IsContainer && !item.IsEmpty)
+                {
+                    CollectCandidates(item, slot, found);
+                }
+            }
+        }
+
+        /// <summary>Holding a weapon, shield or tool slot: a strip of the matching items from the pack and bags, to put one on with a click.</summary>
+        private void OpenPicker(Cell cell, int slot)
+        {
+            UIManager.GetGump<EquipPickerGump>()?.Close();
+
+            Item backpack = World.Player.FindItemByLayer(Layer.Backpack);
+
+            if (backpack == null)
+            {
+                return;
+            }
+
+            var candidates = new List<Item>();
+            CollectCandidates(backpack, slot, candidates);
+
+            if (candidates.Count == 0)
+            {
+                GameActions.Print(World, $"You have no other {SlotNames[slot]} in your pack.");
+
+                return;
+            }
+
+            candidates.Sort((a, b) =>
+            {
+                int byName = string.Compare(NameOf(a), NameOf(b), StringComparison.OrdinalIgnoreCase);
+
+                return byName != 0 ? byName : a.Serial.CompareTo(b.Serial);
+            });
+
+            var shown = new List<uint>();
+
+            for (int i = 0; i < Math.Min(candidates.Count, EquipPickerGump.MaxRows); i++)
+            {
+                shown.Add(candidates[i].Serial);
+            }
+
+            AskDurability(shown);
+
+            UIManager.Add(
+                new EquipPickerGump(
+                    World, new Rectangle(cell.ScreenCoordinateX, cell.ScreenCoordinateY, cell.Width, cell.Height), candidates, Equip
+                )
+            );
         }
 
         /// <summary>
@@ -613,7 +855,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         // ---- drawing
 
-        private static void DrawArt(RenderLists renderLists, ushort graphic, ushort hueId, bool partial, float alpha, int boxX, int boxY, int boxWidth, int boxHeight, float layerDepth)
+        internal static void DrawArt(RenderLists renderLists, ushort graphic, ushort hueId, bool partial, float alpha, int boxX, int boxY, int boxWidth, int boxHeight, float layerDepth)
         {
             ref readonly var art = ref Client.Game.UO.Arts.GetArt(graphic);
 
@@ -698,11 +940,56 @@ namespace ClassicUO.Game.UI.Gumps
                 }
                 else
                 {
-                    Width = SlotWidth;
+                    Width = slot == WeightSlot ? 56 : slot == WarSlot ? 36 : SlotWidth;
                 }
 
                 _label = new Label("0", true, 0x0481, 0, 1, FontStyle.BlackBorder) { AcceptMouseInput = false };
                 Add(_label);
+
+                if (slot == WeightSlot)
+                {
+                    var caption = new Label("stones", true, 0x0481, 0, 1, FontStyle.BlackBorder) { AcceptMouseInput = false };
+                    caption.X = (Width - caption.Width) / 2;
+                    caption.Y = ArtBox / 2 - caption.Height / 2;
+                    Add(caption);
+                }
+            }
+
+            private long _downAt;
+            private bool _openedPicker;
+
+            protected override void OnMouseDown(int x, int y, MouseButtonType button)
+            {
+                if (button == MouseButtonType.Left && _supply == null && _slot < _bar._slots.Length)
+                {
+                    _downAt = Time.Ticks;
+                    _openedPicker = false;
+                }
+
+                base.OnMouseDown(x, y, button);
+            }
+
+            public override void Update()
+            {
+                base.Update();
+
+                if (_supply != null || _slot >= _bar._slots.Length || _downAt == 0)
+                {
+                    return;
+                }
+
+                if (!Mouse.LButtonPressed)
+                {
+                    _downAt = 0;
+
+                    return;
+                }
+
+                if (!_openedPicker && Time.Ticks - _downAt >= HoldMilliseconds && Math.Abs(Mouse.LDragOffset.X) < 4 && Math.Abs(Mouse.LDragOffset.Y) < 4)
+                {
+                    _openedPicker = true;
+                    _bar.OpenPicker(this, _slot);
+                }
             }
 
             public void Refresh()
@@ -710,12 +997,29 @@ namespace ClassicUO.Game.UI.Gumps
                 string text;
                 string tooltip;
                 float alpha = 1f;
+                ushort hue = NormalCountHue;
+                string note = string.Empty;
 
                 if (_supply is { } s)
                 {
                     int count = _bar._counts.GetValueOrDefault(s.Graphic);
                     text = count.ToString();
                     alpha = count > 0 ? 1f : 0.35f;
+                    bool bandaging = s.Kind == Kind.Bandage && _bar.Bandaging;
+                    bool low = count > 0 && count <= LowLevel(s.Kind);
+                    bool unused = s.Kind == Kind.Ammo && _bar.AmmoNotUsed(s.Graphic);
+                    hue = low ? LowCountHue : NormalCountHue;
+                    note = (bandaging ? " Bandaging now." : string.Empty) + (low ? " Running low." : string.Empty) + (unused ? " The weapon in your hand does not use these." : string.Empty);
+
+                    if (bandaging)
+                    {
+                        text = "heal";
+                    }
+
+                    if (unused)
+                    {
+                        alpha = Math.Min(alpha, 0.45f);
+                    }
 
                     tooltip = s.Kind switch
                     {
@@ -726,6 +1030,26 @@ namespace ClassicUO.Game.UI.Gumps
                         _ => count > 0 ? $"{s.Name} ({count})." : $"{s.Name}: you have none."
                     };
                 }
+                else if (_slot == WarSlot)
+                {
+                    bool inWar = _bar.World.Player.InWarMode;
+                    text = inWar ? "WAR" : "peace";
+                    hue = inWar ? LowCountHue : NormalCountHue;
+                    alpha = inWar ? 1f : 0.55f;
+                    tooltip = inWar
+                        ? "War mode: you will attack what you target. Click to go back to peace."
+                        : "Peace mode: you will not attack on your own. Click to enter war mode so you can fight.";
+                }
+                else if (_slot == WeightSlot)
+                {
+                    int carried = _bar.World.Player.Weight;
+                    int limit = _bar.World.Player.WeightMax;
+                    text = $"{carried}/{limit}";
+                    hue = carried > limit ? LowCountHue : limit > 0 && carried * 100 >= limit * 85 ? (ushort)0x0035 : NormalCountHue;
+                    tooltip = carried > limit
+                        ? $"You carry {carried} of {limit} stones: you are overloaded. Drop or store something."
+                        : $"You carry {carried} of {limit} stones." + (hue == 0x0035 ? " You are close to the limit." : string.Empty);
+                }
                 else
                 {
                     Item item = _bar.SlotItem(_slot);
@@ -734,12 +1058,15 @@ namespace ClassicUO.Game.UI.Gumps
                     alpha = item == null ? 0.35f : 1f;
                     string role = _slot == MainSlot ? "The weapon you held last" : _slot == ShieldSlot ? "The shield you wore last" : "The tool you held last";
 
+                    string wear = item != null && TryGetDurability(item.Serial, out var worn) ? $" Durability {worn.Hits} of {worn.Max}." : string.Empty;
+
                     tooltip = item == null
-                        ? $"{role} appears here."
-                        : $"{NameOf(item)}. {(held ? "In your hand: click to put it away." : "Click to hold it.")}";
+                        ? $"{role} appears here. Hold to choose from your pack."
+                        : $"{NameOf(item)}.{wear} {(held ? "In your hand: click to put it away." : "Click to hold it.")} Hold the button to choose another.";
                 }
 
-                string key = $"{text}|{alpha}|{tooltip}";
+                tooltip += note;
+                string key = $"{text}|{alpha}|{tooltip}|{hue}";
 
                 if (key == _shown)
                 {
@@ -748,21 +1075,32 @@ namespace ClassicUO.Game.UI.Gumps
 
                 _shown = key;
                 _label.Text = text;
+                _label.Hue = hue;
                 _label.X = (Width - _label.Width) / 2;
                 _label.Y = ArtBox + 1;
                 Alpha = alpha;
                 SetTooltip(tooltip);
             }
 
-            private static string NameOf(Item item)
-            {
-                string name = string.IsNullOrEmpty(item.Name) ? item.ItemData.Name : item.Name;
-
-                return string.IsNullOrEmpty(name) ? "Item" : StringHelper.CapitalizeAllWords(name);
-            }
-
             protected override void OnMouseUp(int x, int y, MouseButtonType button)
             {
+                if (Time.Ticks < EquipPickerGump.SwallowClickUntil)
+                {
+                    // this press closed the selector: it is not also a click on the bar
+                    _downAt = 0;
+
+                    return;
+                }
+
+                if (_openedPicker)
+                {
+                    // the press that opened the strip: letting go must not also equip or put away
+                    _openedPicker = false;
+                    _downAt = 0;
+
+                    return;
+                }
+
                 if (button == MouseButtonType.Left && Math.Abs(Mouse.LDragOffset.X) < 4 && Math.Abs(Mouse.LDragOffset.Y) < 4)
                 {
                     if (_supply is { Kind: Kind.Bandage })
@@ -772,7 +1110,14 @@ namespace ClassicUO.Game.UI.Gumps
                         return;
                     }
 
-                    if (_supply == null)
+                    if (_supply == null && _slot == WarSlot)
+                    {
+                        GameActions.ToggleWarMode(_bar.World.Player);
+
+                        return;
+                    }
+
+                    if (_supply == null && _slot < _bar._slots.Length)
                     {
                         _bar.Equip(_slot);
 
@@ -787,11 +1132,28 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (_supply is { } s)
                 {
-                    DrawArt(renderLists, s.Graphic, 0, false, Alpha, x, y, Width, ArtBox, layerDepthRef);
+                    float alpha = Alpha;
+
+                    if (s.Kind == Kind.Bandage && _bar.Bandaging)
+                    {
+                        // pulsing while a bandage is being applied
+                        alpha = 0.5f + 0.5f * (0.5f + 0.5f * MathF.Sin(Time.Ticks / 170f));
+                    }
+
+                    DrawArt(renderLists, s.Graphic, 0, false, alpha, x, y, Width, ArtBox, layerDepthRef);
+                }
+                else if (_slot == WarSlot)
+                {
+                    DrawArt(renderLists, 0x0F5E, 0, false, Alpha, x, y, Width, ArtBox, layerDepthRef);
                 }
                 else if (_bar.SlotItem(_slot) is { } item)
                 {
                     DrawArt(renderLists, item.Graphic, item.Hue, item.ItemData.IsPartialHue, Alpha, x, y, Width, ArtBox, layerDepthRef);
+
+                    if (TryGetDurability(item.Serial, out var worn))
+                    {
+                        DrawDurability(renderLists, worn.Hits, worn.Max, x + Width - 4, y + 3, ArtBox - 6, Alpha, layerDepthRef);
+                    }
                 }
 
                 return base.AddToRenderLists(renderLists, x, y, ref layerDepthRef);

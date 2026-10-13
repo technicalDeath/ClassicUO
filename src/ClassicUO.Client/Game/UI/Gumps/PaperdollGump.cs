@@ -36,6 +36,9 @@ namespace ClassicUO.Game.UI.Gumps
         private GumpPic _virtueMenuPic;
         private Button _warModeBtn;
 
+        private const string PeaceTooltip = "Peace mode: you will not attack on your own. Click to enter war mode so you can fight.";
+        private const string WarTooltip = "War mode: you will attack what you target. Click to go back to peace.";
+
         public PaperDollGump(World world) : base(world, 0, 0)
         {
             CanMove = true;
@@ -151,7 +154,8 @@ namespace ClassicUO.Game.UI.Gumps
                     }
                 );
 
-                if (Client.Game.UO.Version < ClientVersion.CV_500A)
+                // The stock client shows a Quests button here for a client of 5.0 or newer; this shard has no quest system, so it shows the Journal button instead.
+                if (true)
                 {
                     // JOURNAL BUTTON
                     Add(
@@ -215,6 +219,8 @@ namespace ClassicUO.Game.UI.Gumps
                         ButtonAction = ButtonAction.Activate
                     }
                 );
+
+                _warModeBtn.SetTooltip(_isWarMode ? WarTooltip : PeaceTooltip);
 
                 int profileX = 25;
                 const int SCROLLS_STEP = 14;
@@ -400,6 +406,7 @@ namespace ClassicUO.Game.UI.Gumps
                 _warModeBtn.ButtonGraphicNormal = btngumps[0];
                 _warModeBtn.ButtonGraphicPressed = btngumps[1];
                 _warModeBtn.ButtonGraphicOver = btngumps[2];
+                _warModeBtn.SetTooltip(_isWarMode ? WarTooltip : PeaceTooltip);
             }
 
             base.Update();
@@ -584,7 +591,7 @@ namespace ClassicUO.Game.UI.Gumps
             switch ((Buttons)buttonID)
             {
                 case Buttons.Help:
-                    GameActions.RequestHelp();
+                    TopBarGump.OpenHelp();
 
                     break;
 

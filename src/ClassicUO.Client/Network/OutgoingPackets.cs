@@ -3553,6 +3553,28 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
+        /// <summary>Asks the shard how worn the given weapons, shields and armor are (CombatBarService, command 0xA9); the answer is the same command.</summary>
+        public static void Send_DurabilityRequest(this NetClient socket, List<uint> serials)
+        {
+            var writer = new StackDataWriter(8 + serials.Count * 4);
+
+            writer.WriteUInt8(0xBF);
+            writer.WriteZero(2);
+            writer.WriteUInt16BE(0xA9);
+            writer.WriteUInt8((byte) serials.Count);
+
+            foreach (uint serial in serials)
+            {
+                writer.WriteUInt32BE(serial);
+            }
+
+            writer.Seek(1, SeekOrigin.Begin);
+            writer.WriteUInt16BE((ushort) writer.BytesWritten);
+
+            socket.Send(writer.BufferWritten);
+            writer.Dispose();
+        }
+
         /// <summary>Asks the shard which top bar buttons to show (MenuBarService, command 0xA8); the answer is the same command.</summary>
         public static void Send_MenuBarRequest(this NetClient socket)
         {

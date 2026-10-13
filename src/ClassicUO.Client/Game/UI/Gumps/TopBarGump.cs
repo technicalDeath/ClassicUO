@@ -165,6 +165,19 @@ namespace ClassicUO.Game.UI.Gumps
 
         public static void ResetShardMask() => ShardMask = 0;
 
+        /// <summary>What the Help button does: the Skill Guide and About window when the shard says it is on, the stock page-a-GM request otherwise. The paperdoll's Help button does the same.</summary>
+        public static void OpenHelp()
+        {
+            if ((ShardMask & ShardBar) != 0 && (ShardMask & AboutBit) != 0)
+            {
+                GameActions.Say("[SkillGuide");
+            }
+            else
+            {
+                GameActions.RequestHelp();
+            }
+        }
+
         public static void OnMaskReply(World world, ref StackDataReader p)
         {
             ushort mask = p.Remaining >= 2 ? p.ReadUInt16BE() : (ushort)0;
@@ -326,14 +339,7 @@ namespace ClassicUO.Game.UI.Gumps
                     break;
 
                 case Buttons.Help:
-                    if ((ShardMask & AboutBit) != 0)
-                    {
-                        GameActions.Say("[SkillGuide");
-                    }
-                    else
-                    {
-                        GameActions.RequestHelp();
-                    }
+                    OpenHelp();
 
                     break;
 

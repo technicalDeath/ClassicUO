@@ -46,30 +46,6 @@ namespace ClassicUO.Game.UI.Gumps
 
         private static readonly Dictionary<uint, long> Asked = new();
 
-        /// <summary>Containers the bar has asked the server to open only to read what is inside: the open packet for one of these makes no window (PacketHandlers.OpenContainer).</summary>
-        private static readonly HashSet<uint> Silent = new();
-
-        public static bool IsSilent(uint serial) => Silent.Contains(serial);
-
-        private void BeginSilent(Item container)
-        {
-            Silent.Add(container.Serial);
-            GameActions.DoubleClick(World, container.Serial);
-        }
-
-        /// <summary>The contents have arrived (or the server never answered): stop swallowing the open packet and clear the "opened" mark the packet left, as closing a window would.</summary>
-        private void EndSilent(uint serial)
-        {
-            Silent.Remove(serial);
-
-            Item container = World.Items.Get(serial);
-
-            if (container != null)
-            {
-                container.Opened = false;
-            }
-        }
-
         private const ushort LargerIcon = 62050;  // the shard's brass diamonds, see ShardContent/tools/gump-art/make_pack_icons.py
         private const ushort SmallerIcon = 62051;
         private const int ArtHeight = 43;       // the tallest bottle; every bottle stands on the same line
@@ -94,13 +70,6 @@ namespace ClassicUO.Game.UI.Gumps
         private AlphaBlendControl _background;
         private long _nextScan;
         private long _nextAsk;
-        private bool _primed;
-        private bool _primeClosed;
-        private long _primeDeadline;
-        private readonly HashSet<uint> _bagsTried = new();
-        private uint _bagOpening;
-        private long _nextBag;
-        private long _bagDeadline;
         private bool _moved;
         private int _mode;
         private bool _built;
@@ -290,13 +259,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             if (backpack != null)
             {
-                Prime(backpack);
-
-                if (_primeClosed)
-                {
-                    PrimeBags(backpack);
-                }
-
+                PackPrimer.Tick(World);
                 Collect(backpack);
             }
 
@@ -359,101 +322,6 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 Refresh();
             }
-        }
-
-        /// <summary>
-        /// The client only learns what is in a container when it is opened. So once, at login, the pack is opened for the bar's sake, with no window at all (see Silent); after
-        /// that the pack's contents stay known and the bar follows every change.
-        /// </summary>
-        private void Prime(Item backpack)
-        {
-            if (!_primed)
-            {
-                if (backpack.Items == null && !Client.Game.UO.GameCursor.ItemHold.Enabled)
-                {
-                    _primed = true;
-                    _primeDeadline = Time.Ticks + 3000;
-                    BeginSilent(backpack);
-                }
-                else if (backpack.Items != null)
-                {
-                    _primed = _primeClosed = true; // the player already opened it
-                }
-            }
-            else if (!_primeClosed && (backpack.Items != null || Time.Ticks > _primeDeadline))
-            {
-                EndSilent(backpack.Serial);
-                _primeClosed = true;
-            }
-        }
-
-        /// <summary>The plain bags, pouches, boxes and chests a pack may hold: ones that only open when double-clicked. A keg, a book or a runebook does something else, so it is left out.</summary>
-        private static readonly HashSet<ushort> PlainContainers = new()
-        {
-            0x0E76, 0x0E79, 0x0E7D, 0x0E80, 0x09AA, 0x09A8, 0x09B0, 0x0E3C, 0x0E3D, 0x0E3E, 0x0E3F, 0x0E40, 0x0E41, 0x0E42, 0x0E43
-        };
-
-        /// <summary>
-        /// Potions inside a bag the client has never opened are unknown to it, so the bar opens each plain bag in the pack once (one at a time, with a pause between, closing its
-        /// window is ever made, see Silent). A bag that is locked or will not open is tried only once.
-        /// </summary>
-        private void PrimeBags(Item backpack)
-        {
-            if (_bagOpening != 0)
-            {
-                Item opening = World.Items.Get(_bagOpening);
-
-                if (opening == null || opening.Items != null || Time.Ticks > _bagDeadline)
-                {
-                    EndSilent(_bagOpening);
-                    _bagOpening = 0;
-                }
-
-                return;
-            }
-
-            if (Time.Ticks < _nextBag || Client.Game.UO.GameCursor.ItemHold.Enabled || _stage != Stage.Idle)
-            {
-                return;
-            }
-
-            Item bag = FindUnopenedBag(backpack);
-
-            if (bag == null)
-            {
-                return;
-            }
-
-            _bagsTried.Add(bag.Serial);
-            _bagOpening = bag.Serial;
-            _nextBag = Time.Ticks + 700;
-            _bagDeadline = Time.Ticks + 1500;
-            BeginSilent(bag);
-        }
-
-        private Item FindUnopenedBag(Item container)
-        {
-            for (LinkedObject i = container.Items; i != null; i = i.Next)
-            {
-                var item = (Item)i;
-
-                if (!PlainContainers.Contains(item.Graphic) || !item.ItemData.IsContainer)
-                {
-                    continue;
-                }
-
-                if (item.Items == null && !_bagsTried.Contains(item.Serial))
-                {
-                    return item;
-                }
-
-                if (item.Items != null && FindUnopenedBag(item) is { } inner)
-                {
-                    return inner;
-                }
-            }
-
-            return null;
         }
 
         private void Collect(Item container)

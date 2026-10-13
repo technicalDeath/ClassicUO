@@ -1138,6 +1138,11 @@ namespace ClassicUO.Game.Scenes
                 _world.TargetManager.CancelTarget();
             }
 
+            if (keycode == SDL.SDL_Keycode.SDLK_ESCAPE)
+            {
+                UIManager.GetGump<EquipPickerGump>()?.Close();
+            }
+
             if (UIManager.KeyboardFocusControl != UIManager.SystemChat.TextBoxControl)
             {
                 return;

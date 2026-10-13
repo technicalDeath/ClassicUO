@@ -1403,7 +1403,7 @@ namespace ClassicUO.Network
                 if (item != null)
                 {
                     // The potion bar opens the pack and its bags only to learn what is inside: no window, no remembered position used up, no sound; the contents still arrive.
-                    if (!PotionBarGump.IsSilent(serial))
+                    if (!PackPrimer.IsSilent(serial))
                     {
                     if (
                         item.IsCorpse
@@ -4141,6 +4141,11 @@ namespace ClassicUO.Network
 
                 case PotionBarGump.Command: // the shard says which strength each asked potion is
                     PotionBarGump.OnStrengthReply(ref p);
+
+                    break;
+
+                case CombatBarGump.DurabilityCommand: // the shard says how worn the asked items are
+                    CombatBarGump.OnDurabilityReply(ref p);
 
                     break;
 

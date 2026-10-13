@@ -31,6 +31,8 @@ namespace ClassicUO.Game.UI.Gumps
             private uint _lastChangeTime;
             private readonly ImageWithText _image;
             private uint _time;
+            private long _nextWearAsk;
+            private uint _wearSerial;
             private AlphaBlendControl _background;
             private readonly CounterBarGump _gump;
 
@@ -145,6 +147,11 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (item != null)
                 {
+                    if (Graphic == 0x0E21)
+                    {
+                        BandageWatch.Start(_gump.World);
+                    }
+
                     GameActions.DoubleClick(_gump.World, item);
                 }
             }
@@ -336,6 +343,43 @@ namespace ClassicUO.Game.UI.Gumps
                 UpdateOnChangeAnimation(previousAmount);
 
                 _image.SetAmount(CalculateDisplayAmountText());
+                UpdateShardCues();
+            }
+
+            /// <summary>
+            /// The shard bars' cues on the standard shortcut slot, the same as on the combat bar: a count in red when a supply runs low, the wrong ammunition dimmed for the bow or
+            /// crossbow in hand, a pulsing "heal" while a bandage is being applied, and a durability gauge for a weapon, shield or armor piece (the server answers; see CombatBarService).
+            /// </summary>
+            private void UpdateShardCues()
+            {
+                int low = CombatBarGump.SupplyLowLevelOf(Graphic);
+                bool isLow = low > 0 && _amount > 0 && _amount <= low;
+                bool bandaging = Graphic == 0x0E21 && BandageWatch.Active;
+
+                _image.Cue(
+                    bandaging ? "heal" : null,
+                    isLow ? CombatBarGump.LowHue : (ushort)0x35,
+                    bandaging,
+                    CombatBarGump.AmmoNotUsedByHand(_gump.World, Graphic)
+                );
+
+                var data = Client.Game.UO.FileManager.TileData.StaticData[Graphic];
+
+                if (data.IsWeapon || data.IsWearable)
+                {
+                    Item item = _gump.World.Player.FindItem(Graphic, Hue ?? 0xFFFF);
+                    _wearSerial = item?.Serial ?? 0;
+
+                    if (_wearSerial != 0 && Time.Ticks >= _nextWearAsk)
+                    {
+                        _nextWearAsk = Time.Ticks + 2500;
+                        CombatBarGump.AskDurability(new[] { _wearSerial });
+                    }
+                }
+                else
+                {
+                    _wearSerial = 0;
+                }
             }
 
             private void UpdateOnChangeAnimation(int previousAmount)
@@ -391,7 +435,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
                 else if (displayAmount == 0)
                 {
-                    prefix = "±";
+                    prefix = "ï¿½";
                 }
                 else if (displayAmount > 0)
                 {
@@ -429,6 +473,11 @@ namespace ClassicUO.Game.UI.Gumps
                     return true;
                 });
 
+                if (_wearSerial != 0 && CombatBarGump.TryGetDurability(_wearSerial, out var worn))
+                {
+                    CombatBarGump.DrawDurability(renderLists, worn.Hits, worn.Max, x + Width - 5, y + 4, Math.Max(8, Height - 8), 1f, layerDepth);
+                }
+
                 return true;
             }
 
@@ -438,6 +487,9 @@ namespace ClassicUO.Game.UI.Gumps
                 private ushort _graphic;
                 private ushort _hue;
                 private bool _partial;
+                private bool _pulse;
+                private bool _dim;
+                private string _cueText;
 
                 public ImageWithText()
                 {
@@ -488,7 +540,8 @@ namespace ClassicUO.Game.UI.Gumps
                         ref readonly var artInfo = ref Client.Game.UO.Arts.GetArt(_graphic);
                         var rect = Client.Game.UO.Arts.GetRealArtBounds(_graphic);
 
-                        Vector3 hueVector = ShaderHueTranslator.GetHueVector(_hue, _partial, 1f);
+                        float alpha = _pulse ? 0.5f + 0.5f * (0.5f + 0.5f * MathF.Sin(Time.Ticks / 170f)) : _dim ? 0.45f : 1f;
+                        Vector3 hueVector = ShaderHueTranslator.GetHueVector(_hue, _partial, alpha);
 
                         Point originalSize = new Point(Width, Height);
                         Point point = new Point();
@@ -533,7 +586,25 @@ namespace ClassicUO.Game.UI.Gumps
 
                 public void SetAmount(string amount)
                 {
-                    _label.Text = amount;
+                    _label.Text = _cueText ?? amount;
+                }
+
+                /// <summary>The shard cues: text that replaces the count, the count's hue, a pulse of the art, and a dimmed art.</summary>
+                public void Cue(string text, ushort labelHue, bool pulse, bool dim)
+                {
+                    _cueText = text;
+                    _pulse = pulse;
+                    _dim = dim;
+
+                    if (_label.Hue != labelHue)
+                    {
+                        _label.Hue = labelHue;
+                    }
+
+                    if (text != null)
+                    {
+                        _label.Text = text;
+                    }
                 }
             }
         }
