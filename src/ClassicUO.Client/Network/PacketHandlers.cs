@@ -473,7 +473,7 @@ namespace ClassicUO.Network
             {
                 ushort damage = p.ReadUInt16BE();
 
-                if (damage > 0)
+                if (damage > 0 && OverheadNumbers.Wanted)
                 {
                     world.WorldTextManager.AddDamage(entity, damage);
                 }
@@ -1513,6 +1513,8 @@ namespace ClassicUO.Network
                         }
                     }
 
+                    bool dock = false;
+
                     if (container != null)
                     {
                         x = container.ScreenCoordinateX;
@@ -1521,20 +1523,28 @@ namespace ClassicUO.Network
                     }
                     else
                     {
+                        // a position the player gave this container before wins; a bag inside another bag keeps the stock place
+                        dock = !UIManager.GetGumpCachePosition(serial, out _) && !SerialHelper.IsItem(item.Container);
                         world.ContainerManager.CalculateContainerPosition(serial, graphic);
                         x = world.ContainerManager.X;
                         y = world.ContainerManager.Y;
                         playsound = true;
                     }
 
-                    UIManager.Add(
-                        new ContainerGump(world, item, graphic, playsound)
-                        {
-                            X = x,
-                            Y = y,
-                            InvalidateContents = true
-                        }
-                    );
+                    var opened = new ContainerGump(world, item, graphic, playsound)
+                    {
+                        X = x,
+                        Y = y,
+                        InvalidateContents = true
+                    };
+
+                    UIManager.Add(opened);
+
+                    if (dock)
+                    {
+                        // the backpack, a bag on the ground, a corpse: in the dark column beside the game window, under the other windows, while there is room
+                        ShardLayout.Dock(opened, Math.Max(opened.Width, 200), Math.Max(opened.Height, 180));
+                    }
 
                     UIManager.RemovePosition(serial);
                     }
@@ -4161,6 +4171,11 @@ namespace ClassicUO.Network
 
                     break;
 
+                case OverheadNumbers.HealCommandId: // the shard says how many hit points a heal restored, to show over the healed one
+                    OverheadNumbers.OnHeal(world, ref p);
+
+                    break;
+
                 case AutoUse.CommandId: // the shard names the cure potion that fits the poison
                     AutoUse.OnCureReply(ref p);
 
@@ -4682,7 +4697,7 @@ namespace ClassicUO.Network
                     {
                         byte damage = p.ReadUInt8();
 
-                        if (damage > 0)
+                        if (damage > 0 && OverheadNumbers.Wanted)
                         {
                             world.WorldTextManager.AddDamage(en, damage);
                         }

@@ -527,6 +527,25 @@ namespace ClassicUO.Game
         {
             if (Client.Game.Scene is GameScene gs)
             {
+                // This era's character list switches the world's object tooltips off, but a shop window's items still show what the vendor describes (the shard describes the vendor's own stock only)
+                if (
+                    !_world.ClientFeatures.TooltipsEnabled
+                    && UIManager.MouseOverControl is { Tooltip: uint shopSerial }
+                    && SerialHelper.IsValid(shopSerial)
+                    && _world.OPL.Contains(shopSerial)
+                    && !Mouse.IsDragging
+                )
+                {
+                    if (_tooltip.IsEmpty || shopSerial != _tooltip.Serial)
+                    {
+                        _tooltip.SetGameObject(shopSerial);
+                    }
+
+                    _tooltip.Draw(batcher, position.X, position.Y + 24);
+
+                    return;
+                }
+
                 if (
                     !_world.ClientFeatures.TooltipsEnabled
                     || (

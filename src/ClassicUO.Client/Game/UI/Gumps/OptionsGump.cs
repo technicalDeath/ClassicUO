@@ -112,7 +112,7 @@ namespace ClassicUO.Game.UI.Gumps
         private ClickableColorBox _innocentColorPickerBox, _friendColorPickerBox, _crimialColorPickerBox, _canAttackColorPickerBox, _enemyColorPickerBox, _murdererColorPickerBox, _neutralColorPickerBox, _beneficColorPickerBox, _harmfulColorPickerBox;
         private HSliderBar _lightBar;
         private Checkbox _buffBarTime, _uiButtonsSingleClick, _queryBeforAttackCheckbox, _queryBeforeBeneficialCheckbox, _spellColoringCheckbox, _spellFormatCheckbox, _enableFastSpellsAssign;
-        private Checkbox _newTargetSystem, _showDPSCheckbox;
+        private Checkbox _newTargetSystem, _showDPSCheckbox, _showNumbersCheckbox;
 
         // macro
         private MacroControl _macroControl;
@@ -2885,6 +2885,10 @@ namespace ClassicUO.Game.UI.Gumps
 
             startY += _enableFastSpellsAssign.Height + 2;
 
+            _showNumbersCheckbox = AddCheckBox(rightArea, "Show damage and healing numbers over heads", _currentProfile.ShowOverheadNumbers, startX, startY);
+
+            startY += _showNumbersCheckbox.Height + 2;
+
             _showDPSCheckbox = AddCheckBox
             (
                 rightArea,
@@ -3857,6 +3861,7 @@ namespace ClassicUO.Game.UI.Gumps
                     break;
 
                 case 8: // combat
+                    _showNumbersCheckbox.IsChecked = true;
                     _showDPSCheckbox.IsChecked = false;
                     _innocentColorPickerBox.Hue = 0x005A;
                     _friendColorPickerBox.Hue = 0x0044;
@@ -4305,6 +4310,7 @@ namespace ClassicUO.Game.UI.Gumps
             _currentProfile.EnabledSpellHue = _spellColoringCheckbox.IsChecked;
             _currentProfile.EnabledSpellFormat = _spellFormatCheckbox.IsChecked;
             _currentProfile.SpellDisplayFormat = _spellFormatBox.Text;
+            _currentProfile.ShowOverheadNumbers = _showNumbersCheckbox.IsChecked;
             _currentProfile.ShowDPSWithDamageNumbers = _showDPSCheckbox.IsChecked;
 
             // macros

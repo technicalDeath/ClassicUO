@@ -67,6 +67,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                 entries.Add((Buttons.Journal, true, cliloc.GetString(3000129, ResGumps.Journal)));
                 entries.Add((Buttons.Map, false, cliloc.GetString(3000430, ResGumps.Map)));
+                entries.Add((Buttons.Names, false, "Names"));
 
                 if ((ShardMask & CampBit) != 0)
                 {
@@ -121,26 +122,22 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 ushort graphic = (ushort)(large ? 0x098D : 0x098B);
 
-                Add(
-                    new RighClickableButton(
-                        (int)id,
-                        graphic,
-                        graphic,
-                        graphic,
-                        text,
-                        1,
-                        true,
-                        0,
-                        0x0036
-                    )
-                    {
-                        ButtonAction = ButtonAction.Activate,
-                        X = startX,
-                        Y = 1,
-                        FontCenter = true
-                    },
-                    1
-                );
+                if (id == Buttons.Names)
+                {
+                    // two buttons on the same spot, one shown at a time (Update): the same word in white while the names are hidden and in green while they are shown
+                    _namesOff = MakeButton(id, graphic, text, 0, startX);
+                    _namesOn = MakeButton(id, graphic, text, NamesOnHue, startX);
+                    _namesOff.SetTooltip(NamesTip);
+                    _namesOn.SetTooltip(NamesTip);
+                    _namesOn.IsVisible = world.NameOverHeadManager.IsToggled;
+                    _namesOff.IsVisible = !_namesOn.IsVisible;
+                    Add(_namesOff, 1);
+                    Add(_namesOn, 1);
+                }
+                else
+                {
+                    Add(MakeButton(id, graphic, text, 0, startX), 1);
+                }
 
                 startX += (large ? largeWidth : smallWidth) + 1;
                 background.Width = startX;
@@ -153,6 +150,37 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         public bool IsMinimized { get; private set; }
+
+        private const ushort NamesOnHue = 0x0044;
+        private const string NamesTip = "Show the name of everyone and everything near you. Click again to hide them. Alt+N does the same, and so does holding Ctrl+Shift.";
+
+        private RighClickableButton _namesOff, _namesOn;
+
+        private static RighClickableButton MakeButton(Buttons id, ushort graphic, string text, ushort normalHue, int x) =>
+            new((int)id, graphic, graphic, graphic, text, 1, true, normalHue, 0x0036)
+            {
+                ButtonAction = ButtonAction.Activate,
+                X = x,
+                Y = 1,
+                FontCenter = true
+            };
+
+        public override void Update()
+        {
+            base.Update();
+
+            // the Names button follows the state, whoever changed it (the button, Alt+N, the macro, the Options window)
+            if (!IsDisposed && _namesOn != null && _namesOff != null)
+            {
+                bool on = World.NameOverHeadManager.IsToggled;
+
+                _namesOn.IsVisible = on;
+                _namesOff.IsVisible = !on;
+            }
+        }
+
+        /// <summary>The shard's top bar is in use (the server sent its menu mask).</summary>
+        public static bool IsShardBar => (ShardMask & ShardBar) != 0;
 
         // The shard's bar (MenuBarService, command 0xA8): until the server's mask arrives, and when it never does, the stock bar is built.
         public const int Command = 0xA8;
@@ -297,6 +325,17 @@ namespace ClassicUO.Game.UI.Gumps
 
                     break;
 
+                case Buttons.Names:
+                    World.NameOverHeadManager.ToggleOverheads();
+                    GameActions.Print(
+                        World,
+                        World.NameOverHeadManager.IsToggled ? "Names are shown. Click Names again, or press Alt+N, to hide them." : "Names are hidden.",
+                        0x35,
+                        MessageType.System
+                    );
+
+                    break;
+
                 case Buttons.GuildChat:
                     if (UIManager.SystemChat is { } chat)
                     {
@@ -412,7 +451,8 @@ namespace ClassicUO.Game.UI.Gumps
             Skills,
             Camp,
             GuildChat,
-            Options
+            Options,
+            Names
         }
 
         private class RighClickableButton : Button

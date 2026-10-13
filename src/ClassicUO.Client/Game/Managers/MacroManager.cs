@@ -258,6 +258,7 @@ namespace ClassicUO.Game.Managers
             AddShardHotkey("Status", (SDL.SDL_Keycode) 99, true, false, false, new MacroObject(MacroType.Open, MacroSubType.Status) { SubMenuType = 1 });
             AddShardHotkey("Bandage self", (SDL.SDL_Keycode) 98, true, false, false, new MacroObject(MacroType.BandageSelf, MacroSubType.MSC_NONE) { SubMenuType = 0 });
             AddShardHotkey("Bandage target", (SDL.SDL_Keycode) 98, true, false, true, new MacroObject(MacroType.BandageTarget, MacroSubType.MSC_NONE) { SubMenuType = 0 });
+            AddShardHotkey("Show names", (SDL.SDL_Keycode) 110, true, false, false, new MacroObject(MacroType.NamesOnOff, MacroSubType.MSC_NONE) { SubMenuType = 0 });
         }
 
         private void AddShardHotkey(string name, SDL.SDL_Keycode key, bool alt, bool ctrl, bool shift, MacroObject action)

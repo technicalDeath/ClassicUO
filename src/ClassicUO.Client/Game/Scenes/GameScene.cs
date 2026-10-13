@@ -792,6 +792,43 @@ namespace ClassicUO.Game.Scenes
             }
 
             OfferBlankHotbar(profile);
+            _offerInfoBarAt = Time.Ticks + 1500;
+        }
+
+        private long _offerInfoBarAt;
+
+        /// <summary>
+        /// The shard's default profile turns the info bar on (hits, mana and stamina as numbers): it is opened once, beside the potion bar, so a new player can see it and can move or close it.
+        /// After that it is the player's: a saved one comes back on login, and putting it away (Options, Info Bar) stays that way.
+        /// </summary>
+        private void OfferInfoBar(Profile profile)
+        {
+            if (!profile.ShowInfoBar || profile.InfoBarOffered)
+            {
+                return;
+            }
+
+            profile.InfoBarOffered = true;
+
+            if (UIManager.GetGump<InfoBarGump>() != null)
+            {
+                return;
+            }
+
+            Rectangle area = Camera.Bounds;
+            PotionBarGump potions = UIManager.GetGump<PotionBarGump>();
+            int x = area.X + 8;
+            int y = area.Bottom + 8;
+
+            if (potions != null && potions.IsVisible && !potions.IsMoved)
+            {
+                x = potions.X + potions.Width + 10;
+                y = potions.Y + 8;
+            }
+
+            var bar = new InfoBarGump(_world) { X = x, Y = y };
+            UIManager.Add(bar);
+            bar.SetInScreen();
         }
 
         /// <summary>
@@ -849,6 +886,12 @@ namespace ClassicUO.Game.Scenes
             }
 
             ApplyStartGameWindowShare(currentProfile);
+
+            if (_offerInfoBarAt != 0 && Time.Ticks >= _offerInfoBarAt)
+            {
+                _offerInfoBarAt = 0;
+                OfferInfoBar(currentProfile);
+            }
             OfferBuffWindow(currentProfile);
 
             if (Time.Ticks > _timePing)

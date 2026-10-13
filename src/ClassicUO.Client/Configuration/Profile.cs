@@ -298,6 +298,9 @@ namespace ClassicUO.Configuration
 
         /// <summary>A new profile gets one blank hotbar (the counter bar) opened beside the game window, so a new player sees that it can be filled; set once it has been.</summary>
         public bool CounterBarOffered { get; set; }
+
+        /// <summary>The info bar (hits, mana, stamina) has been opened for this profile once; after that it is the player's.</summary>
+        public bool InfoBarOffered { get; set; }
         public bool CounterBarHighlightOnChange { get; set; } = true;
         public bool CounterBarHighlightOnAmount { get; set; }
         public bool CounterBarDisplayAbbreviatedAmount { get; set; }
@@ -392,6 +395,9 @@ namespace ClassicUO.Configuration
         public bool WorldMapShowGridIfZoomed { get; set; } = true;
         public bool WorldMapAllowPositionalTarget { get; set; } = false;
         public bool ShowDPSWithDamageNumbers { get; set; } = true;
+
+        /// <summary>Whether the numbers that float over a head (damage, and the shard's heals) are shown.</summary>
+        public bool ShowOverheadNumbers { get; set; } = true;
 
         public static uint GumpsVersion { get; private set; }
 

@@ -97,6 +97,22 @@ namespace ClassicUO.Game.GameObjects
             }
         }
 
+        /// <summary>A heal: a green "+N" that floats up like a damage number (it is not damage, so it does not count towards DPS).</summary>
+        public void AddHeal(int restored)
+        {
+            TextObject text_obj = TextObject.Create(_world);
+
+            text_obj.RenderedText = RenderedText.Create("+" + restored, 0x0044, 3, false);
+            text_obj.Time = Time.Ticks + 1500;
+
+            _messages.AddToFront(text_obj);
+
+            if (_messages.Count > 10)
+            {
+                _messages.RemoveFromBack()?.Destroy();
+            }
+        }
+
         public void Update()
         {
             if (IsDestroyed)
