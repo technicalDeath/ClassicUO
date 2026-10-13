@@ -25,14 +25,14 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private const ushort LargerIcon = 62050;
         private const ushort SmallerIcon = 62051;
-        private const int IconBox = 32;
-        private const int LabelRow = 14;
+        private const int IconBox = 29;
+        private const int LabelRow = 13;
         private const int CellHeight = IconBox + LabelRow;
-        private const int CellWidth = 34;
-        private const int Pad = 5;
+        private const int CellWidth = 31;
+        private const int Pad = 4;
         private const int Gap = 4;
-        private const int GroupGap = 12;
-        private const int DiamondSize = 21;
+        private const int GroupGap = 11;
+        private const int DiamondSize = 19;
         private const int BarHeight = CellHeight + 2 * Pad;
         private const int DockedHeight = DiamondSize + 2 * Pad + 4;
         private const int Full = 0;

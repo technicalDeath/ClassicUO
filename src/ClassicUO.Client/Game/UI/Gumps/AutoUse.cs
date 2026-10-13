@@ -27,6 +27,55 @@ namespace ClassicUO.Game.UI.Gumps
     {
         public const int CommandId = 0xAA;
 
+        /// <summary>Raised when one of the four switches changes in the profile, from any window, so every window that shows them can follow.</summary>
+        public static event Action Changed;
+
+        public static bool Get(Profile p, AutoUseOption option) => p != null && option switch
+        {
+            AutoUseOption.Bandage => p.AutoBandage,
+            AutoUseOption.HealPotion => p.AutoHealPotion,
+            AutoUseOption.RefreshPotion => p.AutoRefreshPotion,
+            _ => p.AutoCure
+        };
+
+        public static void Set(Profile p, AutoUseOption option, bool value)
+        {
+            if (p == null || Get(p, option) == value)
+            {
+                return;
+            }
+
+            switch (option)
+            {
+                case AutoUseOption.Bandage: p.AutoBandage = value; break;
+                case AutoUseOption.HealPotion: p.AutoHealPotion = value; break;
+                case AutoUseOption.RefreshPotion: p.AutoRefreshPotion = value; break;
+                default: p.AutoCure = value; break;
+            }
+
+            Changed?.Invoke();
+        }
+
+        /// <summary>The words for each switch, one place so the gear panels and the Options page say the same thing.</summary>
+        public static string LabelOf(AutoUseOption option) => option switch
+        {
+            AutoUseOption.Bandage => $"Bandage me when my health drops below {BandageBelowPercent}%",
+            AutoUseOption.HealPotion => $"Drink a Heal potion when my health falls to {HealPotionAtPercent}%",
+            AutoUseOption.RefreshPotion => $"Drink a Refresh potion when my stamina falls to {RefreshPotionAtPercent}%",
+            _ => "Cure me when I am poisoned"
+        };
+
+        public static string DetailOf(AutoUseOption option) => option switch
+        {
+            AutoUseOption.Bandage => "Also when I am poisoned, if my Healing and Anatomy are both 60 or more, because then a bandage can cure it. Never while a bandage is already being applied.",
+            AutoUseOption.HealPotion => "Uses your strongest Heal potion first.",
+            AutoUseOption.RefreshPotion => "Uses your strongest Refresh potion first.",
+            _ => "Picks the Cure potion that suits the poison, so a strong one is not wasted on a weak poison."
+        };
+
+        public static BarOptionsGump.Option OptionFor(Profile p, AutoUseOption option) =>
+            new(LabelOf(option), DetailOf(option), () => Get(p, option), v => Set(p, option, v));
+
         public const int BandageBelowPercent = 75;
         public const int HealPotionAtPercent = 25;
         public const int RefreshPotionAtPercent = 25;
@@ -226,6 +275,8 @@ namespace ClassicUO.Game.UI.Gumps
         }
     }
 
+    internal enum AutoUseOption { Bandage, HealPotion, RefreshPotion, Cure }
+
     /// <summary>The small panel a bar's gear button opens over the bar: a title and some check boxes bound to profile settings. It closes on a press anywhere outside it, on the gear again, or on Escape.</summary>
     internal sealed class BarOptionsGump : Gump
     {
@@ -239,6 +290,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private readonly long _openedAt = Time.Ticks;
         private readonly Gump _bar;
+        private readonly List<(Checkbox Box, Option Option)> _boxes = new();
         private bool _mouseWasDown = true;
 
         public BarOptionsGump(World world, Gump bar, string title, IReadOnlyList<Option> options) : base(world, 0, 0)
@@ -266,10 +318,17 @@ namespace ClassicUO.Game.UI.Gumps
 
                 box.ValueChanged += (_, _) =>
                 {
+                    // a change that came from elsewhere (the Options page) already is the value: nothing to do
+                    if (o.Get() == box.IsChecked)
+                    {
+                        return;
+                    }
+
                     o.Set(box.IsChecked);
                     ProfileManager.CurrentProfile?.Save(World, ProfileManager.ProfilePath);
                 };
 
+                _boxes.Add((box, o));
                 Add(box);
                 widest = Math.Max(widest, box.Width);
                 y += box.Height + 1;
@@ -289,6 +348,22 @@ namespace ClassicUO.Game.UI.Gumps
             // above the bar, over the game view, where it covers none of the other bars; below it only when there is no room above
             X = Math.Clamp(bar.X, 0, Math.Max(0, Client.Game.ClientBounds.Width - Width));
             Y = bar.Y - Height - 4 >= 0 ? bar.Y - Height - 4 : bar.Y + bar.Height + 4;
+
+            AutoUse.Changed += OnSwitchesChanged;
+        }
+
+        private void OnSwitchesChanged()
+        {
+            foreach ((Checkbox box, Option option) in _boxes)
+            {
+                box.IsChecked = option.Get();
+            }
+        }
+
+        public override void Dispose()
+        {
+            AutoUse.Changed -= OnSwitchesChanged;
+            base.Dispose();
         }
 
         public Gump Bar => _bar;

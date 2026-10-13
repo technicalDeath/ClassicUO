@@ -40,14 +40,14 @@ namespace ClassicUO.Game.UI.Gumps
         private const ushort BandageGraphic = 0x0E21;
         private const ushort LargerIcon = 62050;  // the shard's brass diamonds, see ShardContent/tools/gump-art/make_pack_icons.py
         private const ushort SmallerIcon = 62051;
-        private const int ArtBox = 36;           // every item's art is fitted into a box this big
-        private const int LabelRow = 14;
+        private const int ArtBox = 32;           // every item's art is fitted into a box this big
+        private const int LabelRow = 13;
         private const int CellHeight = ArtBox + LabelRow;
-        private const int Pad = 5;
-        private const int Gap = 9;
-        private const int GroupGap = 18;
-        private const int IconSize = 21;
-        private const int SlotWidth = 40;
+        private const int Pad = 4;
+        private const int Gap = 8;
+        private const int GroupGap = 16;
+        private const int IconSize = 19;
+        private const int SlotWidth = 36;
         private const int BarHeight = CellHeight + 2 * Pad;
         private const int DockedHeight = IconSize + 2 * Pad + 4;
 
@@ -638,10 +638,7 @@ namespace ClassicUO.Game.UI.Gumps
                 World, this, "Combat bar options",
                 new[]
                 {
-                    new BarOptionsGump.Option(
-                        $"Bandage me when my health drops below {AutoUse.BandageBelowPercent}%", "Also when I am poisoned, if my Healing and Anatomy are both 60 or more, because then a bandage can cure it. Never while a bandage is already being applied.",
-                        () => profile.AutoBandage, v => profile.AutoBandage = v
-                    )
+                    AutoUse.OptionFor(profile, AutoUseOption.Bandage)
                 }
             );
         }
@@ -1040,11 +1037,11 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     Rectangle real = Client.Game.UO.Arts.GetRealArtBounds(s.Graphic);
                     float scale = Math.Min(1.6f, Math.Min(ArtBox / (float)Math.Max(1, real.Width), ArtBox / (float)Math.Max(1, real.Height)));
-                    Width = Math.Max(26, (int)(real.Width * scale));
+                    Width = Math.Max(23, (int)(real.Width * scale));
                 }
                 else
                 {
-                    Width = slot == WeightSlot ? 56 : slot == WarSlot ? 36 : SlotWidth;
+                    Width = slot == WeightSlot ? 52 : slot == WarSlot ? 32 : SlotWidth;
                 }
 
                 _label = new Label("0", true, 0x0481, 0, 1, FontStyle.BlackBorder) { AcceptMouseInput = false };

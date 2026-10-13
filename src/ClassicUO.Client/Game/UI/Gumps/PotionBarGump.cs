@@ -32,11 +32,11 @@ namespace ClassicUO.Game.UI.Gumps
 
         public static readonly PotionCell[] Cells =
         {
-            new(10, 0x0F0C, "Lesser heal potion", 29), new(11, 0x0F0C, "Heal potion", 36), new(12, 0x0F0C, "Greater heal potion", 43),
-            new(20, 0x0F07, "Lesser cure potion", 29), new(21, 0x0F07, "Cure potion", 36), new(22, 0x0F07, "Greater cure potion", 43),
-            new(31, 0x0F0B, "Refresh potion", 36), new(32, 0x0F0B, "Total refresh potion", 43),
-            new(41, 0x0F08, "Agility potion", 36), new(42, 0x0F08, "Greater agility potion", 43),
-            new(51, 0x0F09, "Strength potion", 36), new(52, 0x0F09, "Greater strength potion", 43)
+            new(10, 0x0F0C, "Lesser heal potion", 26), new(11, 0x0F0C, "Heal potion", 32), new(12, 0x0F0C, "Greater heal potion", 39),
+            new(20, 0x0F07, "Lesser cure potion", 26), new(21, 0x0F07, "Cure potion", 32), new(22, 0x0F07, "Greater cure potion", 39),
+            new(31, 0x0F0B, "Refresh potion", 32), new(32, 0x0F0B, "Total refresh potion", 39),
+            new(41, 0x0F08, "Agility potion", 32), new(42, 0x0F08, "Greater agility potion", 39),
+            new(51, 0x0F09, "Strength potion", 32), new(52, 0x0F09, "Greater strength potion", 39)
         };
 
         private static readonly HashSet<ushort> PotionGraphics = new() { 0x0F0C, 0x0F07, 0x0F0B, 0x0F08, 0x0F09 };
@@ -48,12 +48,12 @@ namespace ClassicUO.Game.UI.Gumps
 
         private const ushort LargerIcon = 62050;  // the shard's brass diamonds, see ShardContent/tools/gump-art/make_pack_icons.py
         private const ushort SmallerIcon = 62051;
-        private const int ArtHeight = 43;       // the tallest bottle; every bottle stands on the same line
-        private const int LabelRow = 14;        // the count sits centred under its bottle
+        private const int ArtHeight = 39;       // the tallest bottle; every bottle stands on the same line
+        private const int LabelRow = 13;        // the count sits centred under its bottle
         private const int CellHeight = ArtHeight + LabelRow;
-        private const int Pad = 5;
-        private const int Gap = 9;
-        private const int IconSize = 21;        // the brass diamonds, drawn from 23 px art
+        private const int Pad = 4;
+        private const int Gap = 8;
+        private const int IconSize = 19;        // the brass diamonds, drawn from 23 px art
         private const int BarHeight = CellHeight + 2 * Pad;
         private const int DockedHeight = IconSize + 2 * Pad + 4;
 
@@ -213,7 +213,7 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         private const ushort GearIcon = 62052;
-        private const int GroupGap = 14;
+        private const int GroupGap = 13;
 
         private void OpenOptions()
         {
@@ -228,18 +228,9 @@ namespace ClassicUO.Game.UI.Gumps
                 World, this, "Potion bar options",
                 new[]
                 {
-                    new BarOptionsGump.Option(
-                        $"Drink a Heal potion when my health falls to {AutoUse.HealPotionAtPercent}%", "Uses your strongest Heal potion first.",
-                        () => profile.AutoHealPotion, v => profile.AutoHealPotion = v
-                    ),
-                    new BarOptionsGump.Option(
-                        $"Drink a Refresh potion when my stamina falls to {AutoUse.RefreshPotionAtPercent}%", "Uses your strongest Refresh potion first.",
-                        () => profile.AutoRefreshPotion, v => profile.AutoRefreshPotion = v
-                    ),
-                    new BarOptionsGump.Option(
-                        "Cure me when I am poisoned", "Picks the Cure potion that suits the poison, so a strong one is not wasted on a weak poison.",
-                        () => profile.AutoCure, v => profile.AutoCure = v
-                    )
+                    AutoUse.OptionFor(profile, AutoUseOption.HealPotion),
+                    AutoUse.OptionFor(profile, AutoUseOption.RefreshPotion),
+                    AutoUse.OptionFor(profile, AutoUseOption.Cure)
                 }
             );
         }
@@ -716,7 +707,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 _bar = bar;
                 Info = info;
-                Width = Math.Max(24, BottleWidth(info));
+                Width = Math.Max(22, BottleWidth(info));
                 Height = CellHeight;
                 AcceptMouseInput = true;
                 CanMove = true;

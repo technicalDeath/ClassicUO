@@ -55,6 +55,7 @@ namespace ClassicUO.Game.UI.Gumps
         //counters
         private Checkbox _enableCounters, _highlightOnChange, _highlightOnAmount, _enableAbbreviatedAmount;
         private Checkbox _shardPotionBar, _shardCombatBar, _shardSpellBar, _shardBodyFinder;
+        private Checkbox[] _autoUseBoxes;
         private Checkbox _enableDragSelect, _dragSelectHumanoidsOnly, _dragSelectHostileOnly;
 
         // sounds
@@ -3146,19 +3147,59 @@ namespace ClassicUO.Game.UI.Gumps
             // The shard's own bars (each is also folded away or docked with its own small diamond buttons; these switch a bar off or on altogether).
             startX = 5;
             startY += 50;
-            text = AddLabel(rightArea, "Shard bars and strips (each can also be folded away with its own small diamond):", startX, startY);
+            text = AddLabel(rightArea, "Shard bars (each can also be folded with its small diamond):", startX, startY);
             startX += 40;
             startY += text.Height + 2;
 
             _shardPotionBar = AddCheckBox(rightArea, "Potion bar", _currentProfile.PotionBarEnabled, startX, startY);
             startY += _shardPotionBar.Height + 2;
-            _shardCombatBar = AddCheckBox(rightArea, "Combat bar (bandages, ammunition, weapon, shield and tool, war mode, weight)", _currentProfile.CombatBarEnabled, startX, startY);
+            _shardCombatBar = AddCheckBox(rightArea, "Combat bar (bandages, ammunition, weapons, war mode)", _currentProfile.CombatBarEnabled, startX, startY);
             startY += _shardCombatBar.Height + 2;
             _shardSpellBar = AddCheckBox(rightArea, "Spell bar (for characters with Magery)", _currentProfile.SpellBarEnabled, startX, startY);
             startY += _shardSpellBar.Height + 2;
             _shardBodyFinder = AddCheckBox(rightArea, "Show where my body is after I die", _currentProfile.BodyFinderEnabled, startX, startY);
+            startY += _shardBodyFinder.Height + 2;
+
+            // The same four switches as the gear button on the potion and combat bars, offered only while the shard allows them. They follow each other: a change made on a bar shows here at once.
+            if (AutoUse.Allowed)
+            {
+                startX = 5;
+                startY += 24;
+                text = AddLabel(rightArea, "Automatic help (same switches as the bars' gear buttons):", startX, startY);
+                startX += 40;
+                startY += text.Height + 2;
+                _autoUseBoxes = new Checkbox[4];
+
+                for (int i = 0; i < _autoUseBoxes.Length; i++)
+                {
+                    var option = (AutoUseOption)i;
+                    _autoUseBoxes[i] = AddCheckBox(rightArea, AutoUse.LabelOf(option), AutoUse.Get(_currentProfile, option), startX, startY);
+                    startY += _autoUseBoxes[i].Height + 2;
+                }
+
+                AutoUse.Changed += RefreshAutoUseBoxes;
+            }
 
             Add(rightArea, PAGE);
+        }
+
+        private void RefreshAutoUseBoxes()
+        {
+            if (_autoUseBoxes == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _autoUseBoxes.Length; i++)
+            {
+                _autoUseBoxes[i].IsChecked = AutoUse.Get(_currentProfile, (AutoUseOption)i);
+            }
+        }
+
+        public override void Dispose()
+        {
+            AutoUse.Changed -= RefreshAutoUseBoxes;
+            base.Dispose();
         }
 
         /// <summary>Switches the shard's bars on or off now: the potion and combat bars are made or put away; the spell bar and the body strip watch the profile themselves.</summary>
@@ -3203,6 +3244,14 @@ namespace ClassicUO.Game.UI.Gumps
 
             _currentProfile.SpellBarEnabled = _shardSpellBar.IsChecked;
             _currentProfile.BodyFinderEnabled = _shardBodyFinder.IsChecked;
+
+            if (_autoUseBoxes != null)
+            {
+                for (int i = 0; i < _autoUseBoxes.Length; i++)
+                {
+                    AutoUse.Set(_currentProfile, (AutoUseOption)i, _autoUseBoxes[i].IsChecked);
+                }
+            }
         }
 
         private void BuildExperimental()
@@ -3834,6 +3883,15 @@ namespace ClassicUO.Game.UI.Gumps
                     _shardCombatBar.IsChecked = true;
                     _shardSpellBar.IsChecked = true;
                     _shardBodyFinder.IsChecked = true;
+
+                    if (_autoUseBoxes != null)
+                    {
+                        foreach (Checkbox box in _autoUseBoxes)
+                        {
+                            box.IsChecked = true; // the shard's default for a new profile
+                        }
+                    }
+
                     UIManager.GetGump<PotionBarGump>()?.ResetPosition();
                     UIManager.GetGump<CombatBarGump>()?.ResetPosition();
                     UIManager.GetGump<SpellBarGump>()?.ResetPosition();
