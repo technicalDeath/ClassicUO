@@ -3575,6 +3575,12 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
+        /// <summary>Asks the shard which cure potion to drink for the poison the player has (AutoUseService, command 0xAA); the answer is the same command.</summary>
+        public static void Send_AutoUseRequest(this NetClient socket)
+        {
+            socket.Send(new byte[] { 0xBF, 0, 5, 0, 0xAA });
+        }
+
         /// <summary>Asks the shard which top bar buttons to show (MenuBarService, command 0xA8); the answer is the same command.</summary>
         public static void Send_MenuBarRequest(this NetClient socket)
         {

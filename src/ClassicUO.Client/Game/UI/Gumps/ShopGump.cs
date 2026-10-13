@@ -60,12 +60,24 @@ namespace ClassicUO.Game.UI.Gumps
         private const int LEFT_TOP_HEIGHT = 64;
         private const int LEFT_BOTTOM_HEIGHT = 116;
 
+        private const int StockHeight = 60;
+
+        /// <summary>The list's height when the player has not set one: as tall as the window allows below the top of the shop, with room for the bars under the game window, between 60 and 330.</summary>
+        public static int DefaultHeight(int windowHeight, int top) => Math.Clamp(windowHeight - top - LEFT_TOP_HEIGHT - LEFT_BOTTOM_HEIGHT - 150, StockHeight, 330);
+
         private const int RIGHT_OFFSET = 32;
         private const int RIGHT_BOTTOM_HEIGHT = 93;
 
         public ShopGump(World world, uint serial, bool isBuyGump, int x, int y) : base(world, serial, 0) //60 is the base height, original size
         {
             int height = ProfileManager.CurrentProfile.VendorGumpHeight;
+
+            // 60 is the stock client's default and what every profile that never resized the window still holds: a short list that scrolls after two or three rows. Those get a taller
+            // window, up to what the client window can show; a window the player has resized themselves keeps its height.
+            if (height == StockHeight)
+            {
+                height = DefaultHeight(Client.Game.ClientBounds.Height, y);
+            }
 
             X = x;
             Y = y;

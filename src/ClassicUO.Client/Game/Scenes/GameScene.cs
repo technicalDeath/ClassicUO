@@ -133,6 +133,9 @@ namespace ClassicUO.Game.Scenes
                 UIManager.Add(new CombatBarGump(_world));
             }
 
+            UIManager.Add(new SpellBarGump(_world));
+            UIManager.Add(new BodyFinderGump(_world));
+
             NetClient.Socket.Disconnected += SocketOnDisconnected;
             _world.MessageManager.MessageReceived += ChatOnMessageReceived;
             UIManager.ContainerScale = ProfileManager.CurrentProfile.ContainersScale / 100f;

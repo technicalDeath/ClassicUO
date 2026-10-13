@@ -249,10 +249,30 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
+        /// <summary>
+        /// A character with little training (a new one) opens the window with the groups that hold a trained skill already open, so the first thing a new player sees is their own
+        /// skills and not seven closed folders. Anyone with more than this many points keeps every group closed, as the stock client does.
+        /// </summary>
+        private const int NewCharacterSkillTenths = 1500;
+
+        private bool IsNewCharacter()
+        {
+            int total = 0;
+
+            foreach (Skill skill in World.Player.Skills)
+            {
+                total += skill?.BaseFixed ?? 0;
+            }
+
+            return total <= NewCharacterSkillTenths;
+        }
+
         private void LoadSkills()
         {
             if (World.Player != null)
             {
+                bool openTrained = IsNewCharacter();
+
                 foreach (SkillsGroup g in World.SkillsGroupManager.Groups)
                 {
                     SkillsGroupControl control = new SkillsGroupControl(this, g, 3, 3);
@@ -262,6 +282,7 @@ namespace ClassicUO.Game.UI.Gumps
                     control.IsMinimized = true;
 
                     int count = g.Count;
+                    bool hasTrained = false;
 
                     for (int i = 0; i < count; i++)
                     {
@@ -270,7 +291,13 @@ namespace ClassicUO.Game.UI.Gumps
                         if (index < Client.Game.UO.FileManager.Skills.SkillsCount)
                         {
                             control.AddSkill(index, 0, 17 + i * 17);
+                            hasTrained |= index < World.Player.Skills.Length && World.Player.Skills[index] is { BaseFixed: > 0 };
                         }
+                    }
+
+                    if (openTrained && hasTrained)
+                    {
+                        control.IsMinimized = false;
                     }
                 }
             }

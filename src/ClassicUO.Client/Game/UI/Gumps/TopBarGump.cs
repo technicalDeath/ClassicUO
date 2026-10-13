@@ -160,17 +160,21 @@ namespace ClassicUO.Game.UI.Gumps
         private const ushort CampBit = 1 << 1;
         private const ushort GuildChatBit = 1 << 2;
         private const ushort AboutBit = 1 << 3;
+        private const ushort AutoUseBit = 1 << 4;
 
         private static ushort ShardMask;
 
         public static void ResetShardMask() => ShardMask = 0;
 
-        /// <summary>What the Help button does: the Skill Guide and About window when the shard says it is on, the stock page-a-GM request otherwise. The paperdoll's Help button does the same.</summary>
+        /// <summary>The shard allows the bars' auto-use options (the gear buttons on the potion and combat bars).</summary>
+        public static bool AutoUseAllowed => (ShardMask & ShardBar) != 0 && (ShardMask & AutoUseBit) != 0;
+
+        /// <summary>What the Help button does: the shard's Welcome guide (it has the Skill Guide and Page staff buttons) when the shard says so, the stock page-a-GM request otherwise. The paperdoll's Help button does the same.</summary>
         public static void OpenHelp()
         {
             if ((ShardMask & ShardBar) != 0 && (ShardMask & AboutBit) != 0)
             {
-                GameActions.Say("[SkillGuide");
+                GameActions.Say("[Welcome");
             }
             else
             {
@@ -276,7 +280,15 @@ namespace ClassicUO.Game.UI.Gumps
                     break;
 
                 case Buttons.Skills:
-                    GameActions.OpenSkills(World);
+                    // a second click on the button puts the window away again, as a new player expects of a button that opened it
+                    if (UIManager.GetGump<StandardSkillsGump>() is { IsMinimized: false } open)
+                    {
+                        open.Dispose();
+                    }
+                    else
+                    {
+                        GameActions.OpenSkills(World);
+                    }
 
                     break;
 

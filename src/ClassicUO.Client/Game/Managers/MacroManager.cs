@@ -252,6 +252,17 @@ namespace ClassicUO.Game.Managers
                     }
                 }
             );
+
+            // The shard's extra hotkeys for a new profile (docs/New-Player-Pass-2026-10-13.md): the windows a new player reaches for, and bandages.
+            AddShardHotkey("Skills", (SDL.SDL_Keycode) 115, true, false, false, new MacroObject(MacroType.Open, MacroSubType.Skills) { SubMenuType = 1 });
+            AddShardHotkey("Status", (SDL.SDL_Keycode) 99, true, false, false, new MacroObject(MacroType.Open, MacroSubType.Status) { SubMenuType = 1 });
+            AddShardHotkey("Bandage self", (SDL.SDL_Keycode) 98, true, false, false, new MacroObject(MacroType.BandageSelf, MacroSubType.MSC_NONE) { SubMenuType = 0 });
+            AddShardHotkey("Bandage target", (SDL.SDL_Keycode) 98, true, false, true, new MacroObject(MacroType.BandageTarget, MacroSubType.MSC_NONE) { SubMenuType = 0 });
+        }
+
+        private void AddShardHotkey(string name, SDL.SDL_Keycode key, bool alt, bool ctrl, bool shift, MacroObject action)
+        {
+            PushToBack(new Macro(name, key, alt, ctrl, shift) { Items = action });
         }
 
 
@@ -1315,6 +1326,7 @@ namespace ClassicUO.Game.Managers
                             if (bandage != null)
                             {
                                 WaitingBandageTarget = true;
+                                BandageWatch.Start(_world);
                                 GameActions.DoubleClick(_world,bandage);
                                 result = 1;
                             }
@@ -1326,6 +1338,8 @@ namespace ClassicUO.Game.Managers
 
                         if (bandage != null)
                         {
+                            BandageWatch.Start(_world);
+
                             if (macro.Code == MacroType.BandageSelf)
                             {
                                 NetClient.Socket.Send_TargetSelectedObject(bandage.Serial, _world.Player.Serial);

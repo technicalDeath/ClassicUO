@@ -18,9 +18,10 @@ namespace ClassicUO.Game.UI.Gumps
 
         private const int ArmedMilliseconds = 3000;
 
+        // "Your fingers slip!" is not here: the server only counts a slip (damage taken while healing) against the bandage's chance, and the bandage carries on
         private static readonly string[] Ended =
         {
-            "finish applying", "fingers slip", "stay close enough", "before you died", "bind the wound", "failed to cure", "heal what little", "not damaged",
+            "finish applying", "stay close enough", "before you died", "bind the wound", "failed to cure", "heal what little", "not damaged",
             "cannot be used on that", "cannot heal", "can not heal", "too far away", "unable to resurrect", "fail to resurrect"
         };
 
@@ -51,6 +52,14 @@ namespace ClassicUO.Game.UI.Gumps
             _stage = Stage.Armed;
             _until = Time.Ticks + ArmedMilliseconds;
             _cancelsAtStart = world.TargetManager.CancelCount;
+        }
+
+        /// <summary>When a bandage on yourself should be over: the server's own delay for this era (not the later AOS one, which is shorter), 9.4 s plus 0.6 s for each 10 points of Dexterity under 120, and a margin. Too short an estimate would let a second bandage replace the one still being applied.</summary>
+        private static long EndEstimateMilliseconds(int dexterity)
+        {
+            double seconds = Math.Clamp(9.4 + 0.6 * ((120 - dexterity) / 10.0), 8.0, 20.0);
+
+            return (long)((seconds + 3.0) * 1000);
         }
 
         private static void Step()
@@ -86,9 +95,8 @@ namespace ClassicUO.Game.UI.Gumps
                         }
                         else
                         {
-                            double seconds = Math.Clamp(5.0 + 0.5 * ((120 - _world.Player.Dexterity) / 10.0), 4.0, 12.0);
                             _stage = Stage.Applying;
-                            _until = now + (long)((seconds + 3.0) * 1000);
+                            _until = now + EndEstimateMilliseconds(_world.Player.Dexterity);
                         }
                     }
 
@@ -108,6 +116,15 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (_stage == Stage.None || string.IsNullOrEmpty(e.Text))
             {
+                return;
+            }
+
+            // the server's own word that the bandage is on, which is quicker than watching the cursor (a hotkey picks the target within the same frame)
+            if (e.Text.Contains("begin applying", StringComparison.OrdinalIgnoreCase) && _world?.Player != null)
+            {
+                _stage = Stage.Applying;
+                _until = Time.Ticks + EndEstimateMilliseconds(_world.Player.Dexterity);
+
                 return;
             }
 

@@ -120,6 +120,45 @@ namespace ClassicUO.Configuration
         /// <summary>The potion bar's state: 0 every potion, 1 only the potions the player has, 2 docked to a small bar with an empty bottle.</summary>
         public int PotionBarMode { get; set; }
 
+        /// <summary>The shard's spell bar for a character who has trained Magery (state: 0 every spell, 1 only the ones the mana allows, 2 docked).</summary>
+        public bool SpellBarEnabled { get; set; } = true;
+
+        public int SpellBarMode { get; set; }
+
+        /// <summary>The circle the spell bar shows (1 to 8); 0 means the highest one the character's Magery can cast, chosen again each time.</summary>
+        public int SpellBarCircle { get; set; }
+
+        /// <summary>Where the player dragged each shard bar to (-1 until they have), so it comes back there at the next login.</summary>
+        public int PotionBarX { get; set; } = -1;
+
+        public int PotionBarY { get; set; } = -1;
+
+        public int CombatBarX { get; set; } = -1;
+
+        public int CombatBarY { get; set; } = -1;
+
+        public int SpellBarX { get; set; } = -1;
+
+        public int SpellBarY { get; set; } = -1;
+
+        /// <summary>The bars' auto-use options (all off until the player ticks them, and only offered while the shard allows them): see AutoUse.</summary>
+        public bool AutoBandage { get; set; }
+
+        public bool AutoHealPotion { get; set; }
+
+        public bool AutoRefreshPotion { get; set; }
+
+        public bool AutoCure { get; set; }
+
+        /// <summary>The "where is my body" strip: where the player last died (-1 when there is no body to find) and whether the strip is shown at all.</summary>
+        public bool BodyFinderEnabled { get; set; } = true;
+
+        public int BodyMarkerX { get; set; } = -1;
+
+        public int BodyMarkerY { get; set; } = -1;
+
+        public int BodyMarkerMap { get; set; } = -1;
+
         /// <summary>The shard's combat bar under the potion bar: bandages, ammunition, reagents and the last two weapons or tools held.</summary>
         public bool CombatBarEnabled { get; set; }
 

@@ -101,7 +101,9 @@ namespace ClassicUO.Game
 
             if (StatusGumpBase.GetStatusGump() == null)
             {
-                UIManager.Add(StatusGumpBase.AddStatusGump(world, 100, 100));
+                StatusGumpBase status = StatusGumpBase.AddStatusGump(world, 100, 100);
+                ShardLayout.Dock(status, 300, 200);
+                UIManager.Add(status);
             }
         }
 
@@ -117,7 +119,9 @@ namespace ClassicUO.Game
 
             if (journalGump == null)
             {
-                UIManager.Add(new JournalGump(world) { X = 64, Y = 64 });
+                var journal = new JournalGump(world) { X = 64, Y = 64 };
+                ShardLayout.Dock(journal, 300, 300);
+                UIManager.Add(journal);
             }
             else
             {
@@ -152,7 +156,9 @@ namespace ClassicUO.Game
 
             if (miniMapGump == null)
             {
-                UIManager.Add(new MiniMapGump(world));
+                var miniMap = new MiniMapGump(world);
+                ShardLayout.Dock(miniMap, 200, 200);
+                UIManager.Add(miniMap);
             }
             else
             {

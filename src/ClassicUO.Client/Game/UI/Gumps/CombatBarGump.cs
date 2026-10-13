@@ -149,7 +149,12 @@ namespace ClassicUO.Game.UI.Gumps
         private AlphaBlendControl _background;
         private long _nextScan;
         private bool _moved;
+        private bool _restored;
+
+        /// <summary>The player has put this bar where they want it, so the bars that stack under it do not follow it.</summary>
+        public bool IsMoved => _moved;
         private bool _built;
+        private bool _gear;
         private int _mode;
         private string _signature = string.Empty;
         private bool _usesReagents;
@@ -187,6 +192,14 @@ namespace ClassicUO.Game.UI.Gumps
             _slots[MainSlot] = profile?.CombatBarMain ?? 0;
             _slots[ShieldSlot] = profile?.CombatBarShield ?? 0;
             _slots[ToolSlot] = profile?.CombatBarTool ?? 0;
+
+            if (ProfileManager.CurrentProfile is { CombatBarX: >= 0, CombatBarY: >= 0 } saved)
+            {
+                X = saved.CombatBarX;
+                Y = saved.CombatBarY;
+                _moved = true;
+                _restored = true;
+            }
             Rebuild();
         }
 
@@ -260,7 +273,7 @@ namespace ClassicUO.Game.UI.Gumps
         private string Signature()
         {
             var text = new StringBuilder();
-            text.Append(_mode);
+            text.Append(_mode).Append(AutoUse.Allowed ? 'g' : '-');
 
             foreach (Supply supply in Supplies)
             {
@@ -375,6 +388,25 @@ namespace ClassicUO.Game.UI.Gumps
             Add(weight);
             x += weight.Width + Gap;
 
+            // the options button, when the shard allows auto-use
+            _gear = AutoUse.Allowed;
+
+            if (_gear)
+            {
+                x += GroupGap - Gap;
+                int gearY = Pad + (ArtBox - IconSize) / 2;
+                var cog = new GumpPic(x, gearY, 62052, 0) { AcceptMouseInput = false };
+
+                if (cog.Width > 0)
+                {
+                    cog.Width = cog.Height = IconSize;
+                }
+
+                Add(cog);
+                AddButton(x, gearY, IconSize, IconSize, "Options: bandage you at a set level of health", OpenOptions);
+                x += IconSize + Gap;
+            }
+
             Width = Math.Max(x - Gap + Pad, Pad * 2 + IconSize * 2 + Gap);
             Height = BarHeight;
             _background.Width = Width;
@@ -400,7 +432,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void AddButton(int x, int y, int width, int height, string tooltip, Action onClick)
         {
-            var hit = new HitBox(x, y, width, height);
+            var hit = new HitBox(x, y, width, height) { CanMove = true };   // a drag that starts on a button moves the bar; only a click that stays put presses it
 
             hit.MouseUp += (_, e) =>
             {
@@ -455,6 +487,7 @@ namespace ClassicUO.Game.UI.Gumps
             Place();
             StepSelfTarget();
             StepEquip();
+            AutoUse.Tick(World);
         }
 
         private void Scan()
@@ -590,6 +623,40 @@ namespace ClassicUO.Game.UI.Gumps
             BandageWatch.Start(World);
             _selfTargetUntil = Keyboard.Shift ? 0 : Time.Ticks + SelfTargetWindow;
             GameActions.DoubleClick(World, serial);
+        }
+
+        private void OpenOptions()
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+
+            if (profile == null)
+            {
+                return;
+            }
+
+            BarOptionsGump.Toggle(
+                World, this, "Combat bar options",
+                new[]
+                {
+                    new BarOptionsGump.Option(
+                        $"Bandage me when my health drops below {AutoUse.BandageBelowPercent}%", "Also when I am poisoned, if my Healing and Anatomy are both 60 or more, because then a bandage can cure it. Never while a bandage is already being applied.",
+                        () => profile.AutoBandage, v => profile.AutoBandage = v
+                    )
+                }
+            );
+        }
+
+        /// <summary>The auto-bandage: the same steps as a click on the bandage slot, aimed at yourself. Returns false when there is nothing to do it with.</summary>
+        public bool TryBandageSelf()
+        {
+            if (Time.Ticks < _lockUntil || !_firstOf.ContainsKey(BandageGraphic) || _stage != Stage.Idle)
+            {
+                return false;
+            }
+
+            UseBandage();
+
+            return true;
         }
 
         private void StepSelfTarget()
@@ -821,6 +888,15 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (_moved)
             {
+                if (_restored)
+                {
+                    // the saved position may not fit a smaller window now
+                    _restored = false;
+                    SetInScreen();
+                }
+
+                IsVisible = true;
+
                 return;
             }
 
@@ -833,11 +909,12 @@ namespace ClassicUO.Game.UI.Gumps
 
             Rectangle view = scene.Camera.Bounds;
             PotionBarGump potions = UIManager.GetGump<PotionBarGump>();
-            int top = potions != null && potions.IsVisible ? potions.Y + potions.Height + 4 : view.Y + view.Height + 4;
+            int top = potions != null && potions.IsVisible && !potions.IsMoved ? potions.Y + potions.Height + 4 : view.Y + view.Height + 4;
 
             if (Client.Game.ClientBounds.Height - top < Height + 2)
             {
-                IsVisible = false;
+                // no room for another row on a short window: beside the potion bar, if the window is wide enough
+                IsVisible = ShardLayout.BesideAnother(this, potions != null && !potions.IsMoved ? potions : null);
 
                 return;
             }
@@ -847,10 +924,37 @@ namespace ClassicUO.Game.UI.Gumps
             Y = top;
         }
 
+        /// <summary>The bar places itself every frame until it has been moved; this must be known when the drag begins, or it would snap back under the mouse.</summary>
+        protected override void OnDragBegin(int x, int y)
+        {
+            _moved = true;
+            base.OnDragBegin(x, y);
+        }
+
         protected override void OnDragEnd(int x, int y)
         {
             _moved = true;
             base.OnDragEnd(x, y);
+
+            if (ProfileManager.CurrentProfile is { } profile)
+            {
+                profile.CombatBarX = X;
+                profile.CombatBarY = Y;
+                profile.Save(World, ProfileManager.ProfilePath);
+            }
+        }
+
+        /// <summary>Back to the bar's own place under the game window (Options, the shard bars section, Default).</summary>
+        public void ResetPosition()
+        {
+            _moved = false;
+            _restored = false;
+
+            if (ProfileManager.CurrentProfile is { } profile)
+            {
+                profile.CombatBarX = -1;
+                profile.CombatBarY = -1;
+            }
         }
 
         // ---- drawing

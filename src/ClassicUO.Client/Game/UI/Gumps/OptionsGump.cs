@@ -54,6 +54,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         //counters
         private Checkbox _enableCounters, _highlightOnChange, _highlightOnAmount, _enableAbbreviatedAmount;
+        private Checkbox _shardPotionBar, _shardCombatBar, _shardSpellBar, _shardBodyFinder;
         private Checkbox _enableDragSelect, _dragSelectHumanoidsOnly, _dragSelectHostileOnly;
 
         // sounds
@@ -3142,7 +3143,66 @@ namespace ClassicUO.Game.UI.Gumps
                 80
             );
 
+            // The shard's own bars (each is also folded away or docked with its own small diamond buttons; these switch a bar off or on altogether).
+            startX = 5;
+            startY += 50;
+            text = AddLabel(rightArea, "Shard bars and strips (each can also be folded away with its own small diamond):", startX, startY);
+            startX += 40;
+            startY += text.Height + 2;
+
+            _shardPotionBar = AddCheckBox(rightArea, "Potion bar", _currentProfile.PotionBarEnabled, startX, startY);
+            startY += _shardPotionBar.Height + 2;
+            _shardCombatBar = AddCheckBox(rightArea, "Combat bar (bandages, ammunition, weapon, shield and tool, war mode, weight)", _currentProfile.CombatBarEnabled, startX, startY);
+            startY += _shardCombatBar.Height + 2;
+            _shardSpellBar = AddCheckBox(rightArea, "Spell bar (for characters with Magery)", _currentProfile.SpellBarEnabled, startX, startY);
+            startY += _shardSpellBar.Height + 2;
+            _shardBodyFinder = AddCheckBox(rightArea, "Show where my body is after I die", _currentProfile.BodyFinderEnabled, startX, startY);
+
             Add(rightArea, PAGE);
+        }
+
+        /// <summary>Switches the shard's bars on or off now: the potion and combat bars are made or put away; the spell bar and the body strip watch the profile themselves.</summary>
+        private void ApplyShardBars()
+        {
+            bool potion = _shardPotionBar.IsChecked;
+            bool combat = _shardCombatBar.IsChecked;
+
+            if (potion != _currentProfile.PotionBarEnabled)
+            {
+                _currentProfile.PotionBarEnabled = potion;
+
+                if (potion)
+                {
+                    if (UIManager.GetGump<PotionBarGump>() == null)
+                    {
+                        UIManager.Add(new PotionBarGump(World));
+                    }
+                }
+                else
+                {
+                    UIManager.GetGump<PotionBarGump>()?.Dispose();
+                }
+            }
+
+            if (combat != _currentProfile.CombatBarEnabled)
+            {
+                _currentProfile.CombatBarEnabled = combat;
+
+                if (combat)
+                {
+                    if (UIManager.GetGump<CombatBarGump>() == null)
+                    {
+                        UIManager.Add(new CombatBarGump(World));
+                    }
+                }
+                else
+                {
+                    UIManager.GetGump<CombatBarGump>()?.Dispose();
+                }
+            }
+
+            _currentProfile.SpellBarEnabled = _shardSpellBar.IsChecked;
+            _currentProfile.BodyFinderEnabled = _shardBodyFinder.IsChecked;
         }
 
         private void BuildExperimental()
@@ -3770,11 +3830,20 @@ namespace ClassicUO.Game.UI.Gumps
                     break;
 
                 case 9: // counters
-                    _enableCounters.IsChecked = false;
+                    _shardPotionBar.IsChecked = true;
+                    _shardCombatBar.IsChecked = true;
+                    _shardSpellBar.IsChecked = true;
+                    _shardBodyFinder.IsChecked = true;
+                    UIManager.GetGump<PotionBarGump>()?.ResetPosition();
+                    UIManager.GetGump<CombatBarGump>()?.ResetPosition();
+                    UIManager.GetGump<SpellBarGump>()?.ResetPosition();
+                    _enableCounters.IsChecked = true;   // the shard's default for a new profile
                     _highlightOnChange.IsChecked = false;
                     _enableAbbreviatedAmount.IsChecked = false;
-                    _columns.SetText("1");
-                    _rows.SetText("1");
+
+                    // The stock client never builds these two fields on this page (the layout is the cell size alone), so pressing Default here threw and closed the client.
+                    _columns?.SetText("1");
+                    _rows?.SetText("1");
                     _cellSize.Value = 40;
                     _highlightOnAmount.IsChecked = false;
                     _highlightAmount.SetText("5");
@@ -4184,6 +4253,8 @@ namespace ClassicUO.Game.UI.Gumps
             World.Macros.Save();
 
             // counters
+
+            ApplyShardBars();
 
             bool before = _currentProfile.CounterBarEnabled;
             _currentProfile.CounterBarEnabled = _enableCounters.IsChecked;

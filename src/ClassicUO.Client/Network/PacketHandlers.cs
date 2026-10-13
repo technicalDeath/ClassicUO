@@ -1346,7 +1346,7 @@ namespace ClassicUO.Network
 
                 UIManager.GetGump<ShopGump>(serial)?.Dispose();
 
-                ShopGump gump = new ShopGump(world, serial, true, 150, 5);
+                ShopGump gump = new ShopGump(world, serial, true, 150, ShardLayout.BelowTopBar(5));
                 UIManager.Add(gump);
 
                 for (Layer layer = Layer.ShopBuyRestock; layer < Layer.ShopBuy + 1; layer++)
@@ -1979,7 +1979,9 @@ namespace ClassicUO.Network
                     {
                         if (standard == null)
                         {
-                            UIManager.Add(standard = new StandardSkillsGump(world) { X = 100, Y = 100 });
+                            standard = new StandardSkillsGump(world) { X = 100, Y = 100 };
+                            ShardLayout.Dock(standard, 330, 400);
+                            UIManager.Add(standard);
                         }
                     }
                     else
@@ -2245,7 +2247,8 @@ namespace ClassicUO.Network
 
                 //GameActions.OpenPaperdoll(world.Player);
                 GameActions.RequestMobileStatus(world, world.Player);
-                NetClient.Socket.Send_OpenChat("");
+                // The stock client asks the server to open the in-game chat at every login. This shard has that chat switched off, and the server's answer was a line in every new
+                // player's journal, "The chat system has been disabled.", before they had typed anything. The Chat button is not on the shard's top bar either.
 
                 NetClient.Socket.Send_SkillsRequest(world.Player);
                 scene.DoubleClickDelayed(world.Player);
@@ -2709,7 +2712,7 @@ namespace ClassicUO.Network
 
             if (gump == null)
             {
-                gump = new ShopGump(world, vendor, true, 150, 5);
+                gump = new ShopGump(world, vendor, true, 150, ShardLayout.BelowTopBar(5));
                 UIManager.Add(gump);
             }
 
@@ -3078,14 +3081,23 @@ namespace ClassicUO.Network
 
             if (paperdoll == null)
             {
-                if (!UIManager.GetGumpCachePosition(mobile, out Point location))
+                bool placed = UIManager.GetGumpCachePosition(mobile, out Point location);
+
+                if (!placed)
                 {
                     location = new Point(100, 100);
                 }
 
-                UIManager.Add(
-                    new PaperDollGump(world, mobile, (flags & 0x02) != 0) { Location = location }
-                );
+                var newPaperdoll = new PaperDollGump(world, mobile, (flags & 0x02) != 0) { Location = location };
+
+                // A character's own paperdoll opens over the middle of the game view the first time (and a saved position wins every time after). The shard's default puts it in the
+                // dark column beside the game window, where it hides nothing, when the window is wide enough.
+                if (!placed && mobile.Serial == world.Player.Serial)
+                {
+                    ShardLayout.Dock(newPaperdoll, 270, 400);
+                }
+
+                UIManager.Add(newPaperdoll);
             }
             else
             {
@@ -3367,7 +3379,7 @@ namespace ClassicUO.Network
 
             ShopGump gump = UIManager.GetGump<ShopGump>(vendor);
             gump?.Dispose();
-            gump = new ShopGump(world, vendor, false, 100, 0);
+            gump = new ShopGump(world, vendor, false, 100, ShardLayout.BelowTopBar(0));
 
             for (int i = 0; i < countItems; i++)
             {
@@ -4146,6 +4158,11 @@ namespace ClassicUO.Network
 
                 case CombatBarGump.DurabilityCommand: // the shard says how worn the asked items are
                     CombatBarGump.OnDurabilityReply(ref p);
+
+                    break;
+
+                case AutoUse.CommandId: // the shard names the cure potion that fits the poison
+                    AutoUse.OnCureReply(ref p);
 
                     break;
 

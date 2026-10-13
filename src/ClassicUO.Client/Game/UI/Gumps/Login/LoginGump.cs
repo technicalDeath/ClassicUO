@@ -366,62 +366,14 @@ namespace ClassicUO.Game.UI.Gumps.Login
             int htmlY = 442;
 
 
+            // The stock login screen advertises ClassicUO's support page, website and Discord. A player of this shard is better not sent there, so the shard's name takes that place.
             Add
             (
-                new HtmlControl
-                (
-                    htmlX,
-                    htmlY,
-                    150,
-                    15,
-                    false,
-                    false,
-                    false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://www.classicuo.eu/support.php\">Support ClassicUO!",
-                    0x32,
-                    true,
-                    isunicode: true,
-                    style: FontStyle.BlackBorder
-                )
-            );
-
-
-            Add
-            (
-                new HtmlControl
-                (
-                    505,
-                    htmlY,
-                    100,
-                    15,
-                    false,
-                    false,
-                    false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://www.classicuo.eu\">Website",
-                    0x32,
-                    true,
-                    isunicode: true,
-                    style: FontStyle.BlackBorder
-                )
-            );
-
-            Add
-            (
-                new HtmlControl
-                (
-                    505,
-                    htmlY + 19,
-                    100,
-                    15,
-                    false,
-                    false,
-                    false,
-                    "<body link=\"#FF00FF00\" vlink=\"#FF00FF00\" ><a href=\"https://discord.gg/VdyCpjQ\">Join Discord",
-                    0x32,
-                    true,
-                    isunicode: true,
-                    style: FontStyle.BlackBorder
-                )
+                new Label("UO Rekindled", true, 0x32, style: FontStyle.BlackBorder)
+                {
+                    X = htmlX,
+                    Y = htmlY
+                }
             );
 
 

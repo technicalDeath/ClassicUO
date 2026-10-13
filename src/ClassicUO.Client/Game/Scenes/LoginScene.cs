@@ -67,6 +67,7 @@ namespace ClassicUO.Game.Scenes
         {
             base.Load();
             TopBarGump.ResetShardMask();
+            AutoUse.Reset();
 
             Client.Game.Window.AllowUserResizing = false;
 
@@ -561,6 +562,14 @@ namespace ClassicUO.Game.Scenes
             }
 
             CurrentLoginStep = LoginSteps.ServerSelection;
+
+            if (Servers.Length == 1)
+            {
+                // A shard with one server in its list: the new player has nothing to choose, so the list is skipped (the stock client makes everyone click the only entry).
+                SelectServer((byte)Servers[0].Index);
+
+                return;
+            }
 
             if (CanAutologin)
             {

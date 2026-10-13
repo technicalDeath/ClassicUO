@@ -71,8 +71,13 @@ namespace ClassicUO.Game.UI.Gumps
         private long _nextScan;
         private long _nextAsk;
         private bool _moved;
+        private bool _restored;
+
+        /// <summary>The player has put this bar where they want it, so the bars that stack under it do not follow it.</summary>
+        public bool IsMoved => _moved;
         private int _mode;
         private bool _built;
+        private bool _gear;
 
         // drinking
         private enum Stage { Idle, HandFree, Drinking, ReEquip }
@@ -92,6 +97,14 @@ namespace ClassicUO.Game.UI.Gumps
             CanCloseWithRightClick = false;
             WantUpdateSize = false;
             _mode = ProfileManager.CurrentProfile == null ? Full : Math.Clamp(ProfileManager.CurrentProfile.PotionBarMode, Full, Docked);
+
+            if (ProfileManager.CurrentProfile is { PotionBarX: >= 0, PotionBarY: >= 0 } saved)
+            {
+                X = saved.PotionBarX;
+                Y = saved.PotionBarY;
+                _moved = true;
+                _restored = true;
+            }
             Rebuild();
         }
 
@@ -172,12 +185,63 @@ namespace ClassicUO.Game.UI.Gumps
                 x += control.Width + Gap;
             }
 
+            // the options button, when the shard allows auto-use
+            _gear = AutoUse.Allowed;
+
+            if (_gear)
+            {
+                x += GroupGap - Gap;
+                int gearY = Pad + (ArtHeight - IconSize) / 2;
+                var cog = new GumpPic(x, gearY, GearIcon, 0) { AcceptMouseInput = false };
+
+                if (cog.Width > 0)
+                {
+                    cog.Width = cog.Height = IconSize;
+                }
+
+                Add(cog);
+                AddButton(x, gearY, IconSize, IconSize, "Options: drink potions for you at set levels", OpenOptions);
+                x += IconSize + Gap;
+            }
+
             Width = x - Gap + Pad;
             Height = BarHeight;
             _background.Width = Width;
             _background.Height = Height;
             _built = true;
             Refresh();
+        }
+
+        private const ushort GearIcon = 62052;
+        private const int GroupGap = 14;
+
+        private void OpenOptions()
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+
+            if (profile == null)
+            {
+                return;
+            }
+
+            BarOptionsGump.Toggle(
+                World, this, "Potion bar options",
+                new[]
+                {
+                    new BarOptionsGump.Option(
+                        $"Drink a Heal potion when my health falls to {AutoUse.HealPotionAtPercent}%", "Uses your strongest Heal potion first.",
+                        () => profile.AutoHealPotion, v => profile.AutoHealPotion = v
+                    ),
+                    new BarOptionsGump.Option(
+                        $"Drink a Refresh potion when my stamina falls to {AutoUse.RefreshPotionAtPercent}%", "Uses your strongest Refresh potion first.",
+                        () => profile.AutoRefreshPotion, v => profile.AutoRefreshPotion = v
+                    ),
+                    new BarOptionsGump.Option(
+                        "Cure me when I am poisoned", "Picks the Cure potion that suits the poison, so a strong one is not wasted on a weak poison.",
+                        () => profile.AutoCure, v => profile.AutoCure = v
+                    )
+                }
+            );
         }
 
         private void AddDiamond(ref int x, int y, ushort graphic, string tooltip, Action onClick)
@@ -196,7 +260,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void AddButton(int x, int y, int width, int height, string tooltip, Action onClick)
         {
-            var hit = new HitBox(x, y, width, height);
+            var hit = new HitBox(x, y, width, height) { CanMove = true };   // a drag that starts on a button moves the bar; only a click that stays put presses it
 
             hit.MouseUp += (_, e) =>
             {
@@ -250,6 +314,7 @@ namespace ClassicUO.Game.UI.Gumps
 
             Place();
             StepDrink();
+            AutoUse.Tick(World);
         }
 
         private void Scan()
@@ -314,7 +379,7 @@ namespace ClassicUO.Game.UI.Gumps
                 _counts[pair.Key] = pair.Value;
             }
 
-            if (layoutChanged || !_built)
+            if (layoutChanged || !_built || _gear != AutoUse.Allowed)
             {
                 Rebuild();
             }
@@ -346,6 +411,15 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (_moved)
             {
+                if (_restored)
+                {
+                    // the saved position may not fit a smaller window now
+                    _restored = false;
+                    SetInScreen();
+                }
+
+                IsVisible = true;
+
                 return;
             }
 
@@ -371,10 +445,37 @@ namespace ClassicUO.Game.UI.Gumps
             Y = view.Y + view.Height + 4;
         }
 
+        /// <summary>The bar places itself every frame until it has been moved; this must be known when the drag begins, or it would snap back under the mouse.</summary>
+        protected override void OnDragBegin(int x, int y)
+        {
+            _moved = true;
+            base.OnDragBegin(x, y);
+        }
+
         protected override void OnDragEnd(int x, int y)
         {
             _moved = true;
             base.OnDragEnd(x, y);
+
+            if (ProfileManager.CurrentProfile is { } profile)
+            {
+                profile.PotionBarX = X;
+                profile.PotionBarY = Y;
+                profile.Save(World, ProfileManager.ProfilePath);
+            }
+        }
+
+        /// <summary>Back to the bar's own place under the game window (Options, the shard bars section, Default).</summary>
+        public void ResetPosition()
+        {
+            _moved = false;
+            _restored = false;
+
+            if (ProfileManager.CurrentProfile is { } profile)
+            {
+                profile.PotionBarX = -1;
+                profile.PotionBarY = -1;
+            }
         }
 
         // ---- drinking
@@ -415,6 +516,41 @@ namespace ClassicUO.Game.UI.Gumps
             return false;
         }
 
+        /// <summary>Whether a drink could start now: nothing half-done, the server's pace respected, no item in the cursor's hand.</summary>
+        public bool CanAct => _stage == Stage.Idle && Time.Ticks >= _lockUntil && !Client.Game.UO.GameCursor.ItemHold.Enabled;
+
+        /// <summary>Drinks the first potion of these codes (strongest first) that is in the pack. Returns false when there is none or a drink cannot start.</summary>
+        public bool DrinkStrongest(byte[] codesStrongestFirst)
+        {
+            if (!CanAct)
+            {
+                return false;
+            }
+
+            foreach (byte code in codesStrongestFirst)
+            {
+                if (FindPotion(code) is { } potion)
+                {
+                    return DrinkItem(potion);
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Drinks this potion, taking the weapon off first when both hands are busy (the same steps as a click on the bar).</summary>
+        public bool DrinkItem(Item potion)
+        {
+            if (!CanAct || potion == null)
+            {
+                return false;
+            }
+
+            StartDrink(potion);
+
+            return true;
+        }
+
         private void Drink(PotionCell cell)
         {
             if (_stage != Stage.Idle || Time.Ticks < _lockUntil || Client.Game.UO.GameCursor.ItemHold.Enabled)
@@ -431,6 +567,11 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
+            StartDrink(potion);
+        }
+
+        private void StartDrink(Item potion)
+        {
             _potionSerial = potion.Serial;
             _lockUntil = Time.Ticks + ActionDelay;
 
