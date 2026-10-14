@@ -218,6 +218,7 @@ namespace ClassicUO.Game.UI.Gumps
             Height = _gumpPicContainer.Height = (int)(_gumpPicContainer.Height * scale);
 
             AddSizeToggle();
+            AddGridSwitch();
         }
 
         private void HitBoxOnMouseUp(object sender, MouseEventArgs e)

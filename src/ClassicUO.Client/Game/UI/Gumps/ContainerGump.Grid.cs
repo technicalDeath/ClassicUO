@@ -44,6 +44,7 @@ namespace ClassicUO.Game.UI.Gumps
         private StbTextBox _search;
         private Label _title;
         private Label _countLabel;
+        private GridButton _classicButton;
         private Label _searchHint;
         private GridButton _sortButton;
         private GridButton _autoButton;
@@ -130,8 +131,11 @@ namespace ClassicUO.Game.UI.Gumps
 
             Add(_chrome = new GridChrome(this) { Width = Width, Height = Height });
 
-            Add(_title = new Label(TitleText(item), true, 0x0481, Width - 2 * GridMargin - 60, 1, FontStyle.BlackBorder) { X = GridMargin + 2, Y = 6 });
+            Add(_title = new Label(TitleText(item), true, 0x0481, Width - 2 * GridMargin - 140, 1, FontStyle.BlackBorder) { X = GridMargin + 2, Y = 6 });
             Add(_countLabel = new Label(string.Empty, true, 0x0481, 0, 1) { Y = 7 });
+
+            Add(_classicButton = new GridButton("Classic", 52, () => SwitchStyle(0)));
+            _classicButton.SetTooltip("Show this container as the classic window. You can switch back with the Grid button on the backpack, or under Options, Containers.", 230);
 
             _search = new StbTextBox(1, 30, Width - 2 * GridMargin - 8, true, FontStyle.None, 0x0481)
             {
@@ -216,7 +220,9 @@ namespace ClassicUO.Game.UI.Gumps
             _modeButton.Y = 54;
 
             _search.Width = Width - 2 * GridMargin - ScrollBarWidth - 4;
-            _countLabel.X = Width - GridMargin - _countLabel.Width - 16;
+            _classicButton.X = Width - GridMargin - _classicButton.Width - 8;
+            _classicButton.Y = 4;
+            _countLabel.X = _classicButton.X - _countLabel.Width - 10;
             _resizeButton.X = Width - _resizeButton.Width - 4;
             _resizeButton.Y = Height - _resizeButton.Height - 4;
             _hint.X = GridMargin + 2;
@@ -244,6 +250,39 @@ namespace ClassicUO.Game.UI.Gumps
             _resizeButton.MouseUp += (sender, e) => _resizing = false;
             Add(_resizeButton);
             PositionChrome();
+        }
+
+        /// <summary>Changes how containers are drawn (0 classic, 1 grid) and reopens this one in the new style, in the same place.</summary>
+        private void SwitchStyle(int style)
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+
+            if (profile == null || Client.Game.UO.GameCursor.ItemHold.Enabled)
+            {
+                return;
+            }
+
+            profile.ContainerStyle = style;
+            profile.Save(World, ProfileManager.ProfilePath);
+
+            // the open-container packet finds this window by serial and replaces it where it stands
+            GameActions.DoubleClick(World, LocalSerial);
+        }
+
+        /// <summary>A small Grid button on the classic backpack, beside the size button.</summary>
+        private void AddGridSwitch()
+        {
+            if (_grid || !IsMainPack || IsChessboard || IsBackgammonBoard)
+            {
+                return;
+            }
+
+            float scale = UIManager.ContainerScale;
+            GridButton button = new GridButton("Grid", 40, () => SwitchStyle(1));
+            button.X = _sizeIcon != null ? _sizeIcon.X - button.Width - 6 : (int)(Width - 90 * scale);
+            button.Y = (int)(12 * scale);
+            button.SetTooltip("Show your containers as a grid of cells, with search, sort and locks.", 230);
+            Add(button);
         }
 
         // ---- contents -------------------------------------------------------------------------
@@ -593,6 +632,11 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void GridUpdate()
         {
+            if (_state == null || _search == null)
+            {
+                return;
+            }
+
             if (_resizing)
             {
                 if (!Mouse.LButtonPressed)
