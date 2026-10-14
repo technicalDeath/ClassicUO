@@ -100,6 +100,26 @@ namespace ClassicUO.Game.GameObjects
             return false;
         }
 
+        /// <summary>
+        /// Whether this object can be between the camera and the player. The camera looks from the south-east, so only an object on a tile
+        /// with a larger X + Y than the player's (or on the player's own tile) can hide the player. Anything behind or beside the player, such as the
+        /// higher steps of a staircase the player stands below, is never cut open by the circle of transparency.
+        /// </summary>
+        protected bool CanOccludePlayer()
+        {
+            Mobile player = World.Player;
+
+            if (player == null)
+            {
+                return true;
+            }
+
+            int playerSum = player.X + player.Y;
+            int sum = X + Y;
+
+            return sum > playerSum || sum == playerSum && X == player.X;
+        }
+
         protected static void DrawStatic(
             UltimaBatcher2D batcher,
             ushort graphic,

@@ -581,7 +581,6 @@ namespace ClassicUO.Game.Scenes
             {
                 float r = ProfileManager.CurrentProfile.CircleOfTransparencyRadius;
                 _cotRadiusSq = r * r;
-                _cotPlayerScreenPos = _world.Player.GetScreenPosition();
                 _cotGradientMode = ProfileManager.CurrentProfile.CircleOfTransparencyType == 1;
             }
             else
@@ -598,6 +597,18 @@ namespace ClassicUO.Game.Scenes
             }
 
             GetViewPort();
+
+            // The player's place on screen for the gradient circle: worked out from this frame's camera offset. Reading Player.GetScreenPosition() here used the
+            // position left over from the last frame, so on every step (when the player's tile changes and its walking offset starts again) the circle jumped
+            // by up to a tile for a frame, and the walls and floors around it flickered while running.
+            if (ProfileManager.CurrentProfile.UseCircleOfTransparency)
+            {
+                PlayerMobile cotPlayer = _world.Player;
+                _cotPlayerScreenPos = new Vector2(
+                    (cotPlayer.X - cotPlayer.Y) * 22 - _offset.X - 22 + cotPlayer.Offset.X,
+                    (cotPlayer.X + cotPlayer.Y) * 22 - (cotPlayer.Z << 2) - _offset.Y - 22 + (cotPlayer.Offset.Y - cotPlayer.Offset.Z)
+                );
+            }
 
             var ctrlShiftHeld = Keyboard.Ctrl && Keyboard.Shift;
             var useObjectHandles = _world.NameOverHeadManager.IsToggled || ctrlShiftHeld;

@@ -27,6 +27,10 @@ namespace ClassicUO.Game.GameObjects
             {
                 r = false;
             }
+            else if (!CanOccludePlayer())
+            {
+                r = false;
+            }
 
             return r;
         }
