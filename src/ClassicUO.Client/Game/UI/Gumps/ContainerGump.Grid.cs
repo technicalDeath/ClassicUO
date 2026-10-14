@@ -25,6 +25,9 @@ namespace ClassicUO.Game.UI.Gumps
 {
     internal partial class ContainerGump
     {
+        /// <summary>The shard's art for the classic backpack's grid button: a brass diamond with four small cells (ShardContent/tools/gump-art/make_pack_icons.py).</summary>
+        private const ushort GridIcon = 62053;
+
         private const int CellSize = 48;
         private const int CellGap = 3;
         private const int CellPitch = CellSize + CellGap;
@@ -278,11 +281,41 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             float scale = UIManager.ContainerScale;
-            GridButton button = new GridButton("Grid", 40, () => SwitchStyle(1));
-            button.X = _sizeIcon != null ? _sizeIcon.X - button.Width - 6 : (int)(Width - 90 * scale);
-            button.Y = (int)(12 * scale);
-            button.SetTooltip("Show your containers as a grid of cells, with search, sort and locks.", 230);
-            Add(button);
+            const string tip = "Show your containers as a grid of cells, with search, sort and locks.";
+            GumpPic icon = new GumpPic(0, 0, GridIcon, 0) { AcceptMouseInput = false };
+
+            if (icon.Width <= 0)
+            {
+                // the shard's art is not installed in this client: a text button rather than an empty one
+                icon.Dispose();
+                GridButton button = new GridButton("Grid", 40, () => SwitchStyle(1));
+                button.X = _sizeIcon != null ? _sizeIcon.X - button.Width - 6 : (int)(Width - 90 * scale);
+                button.Y = (int)(12 * scale);
+                button.SetTooltip(tip, 230);
+                Add(button);
+
+                return;
+            }
+
+            icon.Width = (int)(icon.Width * scale);
+            icon.Height = (int)(icon.Height * scale);
+            icon.X = _sizeIcon != null ? _sizeIcon.X - icon.Width - 6 : (int)(Width - 80 * scale);
+            icon.Y = (int)(12 * scale);
+
+            HitBox hit = new HitBox(icon.X, icon.Y, icon.Width, icon.Height);
+            hit.SetTooltip(tip, 230);
+            hit.MouseUp += (sender, e) =>
+            {
+                Point offset = Mouse.LDragOffset;
+
+                if (e.Button == MouseButtonType.Left && Math.Abs(offset.X) < Constants.MIN_PICKUP_DRAG_DISTANCE_PIXELS && Math.Abs(offset.Y) < Constants.MIN_PICKUP_DRAG_DISTANCE_PIXELS)
+                {
+                    SwitchStyle(1);
+                }
+            };
+
+            Add(hit);
+            Add(icon);
         }
 
         // ---- contents -------------------------------------------------------------------------
