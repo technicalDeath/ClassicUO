@@ -721,7 +721,7 @@ namespace ClassicUO.Game.UI.Gumps
                 WantUpdateSize = false;
 
                 // the buy list always shows what the server describes (the shard describes only the vendor's own stock); the other shop windows follow the client's tooltip switch
-                if (_gump.World.ClientFeatures.TooltipsEnabled || _gump.IsBuyGump)
+                if (_gump.World.ClientFeatures.TooltipsActive || _gump.IsBuyGump)
                 {
                     SetTooltip(LocalSerial);
                 }

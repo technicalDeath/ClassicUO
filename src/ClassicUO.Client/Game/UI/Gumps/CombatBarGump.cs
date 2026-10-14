@@ -273,7 +273,7 @@ namespace ClassicUO.Game.UI.Gumps
         private string Signature()
         {
             var text = new StringBuilder();
-            text.Append(_mode).Append(AutoUse.Allowed ? 'g' : '-');
+            text.Append(_mode).Append(AutoUse.Allowed || AutoPickup.Allowed ? 'g' : '-');
 
             foreach (Supply supply in Supplies)
             {
@@ -389,7 +389,7 @@ namespace ClassicUO.Game.UI.Gumps
             x += weight.Width + Gap;
 
             // the options button, when the shard allows auto-use
-            _gear = AutoUse.Allowed;
+            _gear = AutoUse.Allowed || AutoPickup.Allowed;
 
             if (_gear)
             {
@@ -403,7 +403,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
 
                 Add(cog);
-                AddButton(x, gearY, IconSize, IconSize, "Options: bandage you at a set level of health", OpenOptions);
+                AddButton(x, gearY, IconSize, IconSize, AutoUse.Allowed ? "Options: bandage you at a set level of health, pick up what you shoot or cast with" : "Options: pick up the arrows, bolts and reagents you use", OpenOptions);
                 x += IconSize + Gap;
             }
 
@@ -504,6 +504,7 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             TrackHeld();
+            SeedEmptySlots(backpack);
             _usesReagents = UsesReagents();
 
             if (Time.Ticks >= _nextDurabilityAsk)
@@ -608,6 +609,52 @@ namespace ClassicUO.Game.UI.Gumps
             }
         }
 
+        /// <summary>
+        /// A new character holds nothing yet, so the slots would sit empty until it has wielded something: the weapon, shield and tool the starter gear put in the pack fill the empty slots, so a new archer
+        /// can click the bow slot at once. A plain Dagger (in every pack) is taken only when there is no other weapon. Slots the player has filled are never touched.
+        /// </summary>
+        private void SeedEmptySlots(Item backpack)
+        {
+            if (backpack == null || backpack.IsEmpty)
+            {
+                return;
+            }
+
+            bool changed = false;
+
+            for (int slot = 0; slot < _slots.Length; slot++)
+            {
+                if (_slots[slot] != 0)
+                {
+                    continue;
+                }
+
+                var found = new List<Item>();
+                CollectCandidates(backpack, slot, found);
+
+                Item pick = found.Find(i => i.Graphic != 0x0F52) ?? (found.Count > 0 ? found[0] : null);
+
+                if (pick != null)
+                {
+                    _slots[slot] = pick.Serial;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                _nextDurabilityAsk = 0;
+
+                if (ProfileManager.CurrentProfile != null)
+                {
+                    ProfileManager.CurrentProfile.CombatBarMain = _slots[MainSlot];
+                    ProfileManager.CurrentProfile.CombatBarShield = _slots[ShieldSlot];
+                    ProfileManager.CurrentProfile.CombatBarTool = _slots[ToolSlot];
+                    ProfileManager.CurrentProfile.Save(World, ProfileManager.ProfilePath);
+                }
+            }
+        }
+
         // ---- bandages
 
         private void UseBandage()
@@ -634,13 +681,21 @@ namespace ClassicUO.Game.UI.Gumps
                 return;
             }
 
-            BarOptionsGump.Toggle(
-                World, this, "Combat bar options",
-                new[]
-                {
-                    AutoUse.OptionFor(profile, AutoUseOption.Bandage)
-                }
-            );
+            var options = new List<BarOptionsGump.Option>();
+
+            if (AutoUse.Allowed)
+            {
+                options.Add(AutoUse.OptionFor(profile, AutoUseOption.Bandage));
+            }
+
+            if (AutoPickup.Allowed)
+            {
+                options.Add(AutoPickup.OptionFor(profile, AutoPickupOption.Arrows));
+                options.Add(AutoPickup.OptionFor(profile, AutoPickupOption.Bolts));
+                options.Add(AutoPickup.OptionFor(profile, AutoPickupOption.Reagents));
+            }
+
+            BarOptionsGump.Toggle(World, this, "Combat bar options", options);
         }
 
         /// <summary>The auto-bandage: the same steps as a click on the bandage slot, aimed at yourself. Returns false when there is nothing to do it with.</summary>
@@ -1033,26 +1088,33 @@ namespace ClassicUO.Game.UI.Gumps
                 CanMove = true;
                 WantUpdateSize = false;
 
+                Label weightCaption = null;
+
                 if (supply is { } s)
                 {
                     Rectangle real = Client.Game.UO.Arts.GetRealArtBounds(s.Graphic);
                     float scale = Math.Min(1.6f, Math.Min(ArtBox / (float)Math.Max(1, real.Width), ArtBox / (float)Math.Max(1, real.Height)));
                     Width = Math.Max(23, (int)(real.Width * scale));
                 }
+                else if (slot == WeightSlot)
+                {
+                    // the caption says what the numbers are, so the cell is as wide as it needs
+                    weightCaption = new Label("stones (weight)", true, 0x0481, 0, 1, FontStyle.BlackBorder) { AcceptMouseInput = false };
+                    Width = Math.Max(52, weightCaption.Width + 4);
+                }
                 else
                 {
-                    Width = slot == WeightSlot ? 52 : slot == WarSlot ? 32 : SlotWidth;
+                    Width = slot == WarSlot ? 32 : SlotWidth;
                 }
 
                 _label = new Label("0", true, 0x0481, 0, 1, FontStyle.BlackBorder) { AcceptMouseInput = false };
                 Add(_label);
 
-                if (slot == WeightSlot)
+                if (weightCaption != null)
                 {
-                    var caption = new Label("stones", true, 0x0481, 0, 1, FontStyle.BlackBorder) { AcceptMouseInput = false };
-                    caption.X = (Width - caption.Width) / 2;
-                    caption.Y = ArtBox / 2 - caption.Height / 2;
-                    Add(caption);
+                    weightCaption.X = (Width - weightCaption.Width) / 2;
+                    weightCaption.Y = ArtBox / 2 - weightCaption.Height / 2;
+                    Add(weightCaption);
                 }
             }
 

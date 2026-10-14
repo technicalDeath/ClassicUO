@@ -189,6 +189,8 @@ namespace ClassicUO.Game.UI.Gumps
         private const ushort GuildChatBit = 1 << 2;
         private const ushort AboutBit = 1 << 3;
         private const ushort AutoUseBit = 1 << 4;
+        private const ushort TooltipsBit = 1 << 5;
+        private const ushort AutoPickupBit = 1 << 6;
 
         private static ushort ShardMask;
 
@@ -196,6 +198,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         /// <summary>The shard allows the bars' auto-use options (the gear buttons on the potion and combat bars).</summary>
         public static bool AutoUseAllowed => (ShardMask & ShardBar) != 0 && (ShardMask & AutoUseBit) != 0;
+
+        /// <summary>The shard picks up arrows, bolts and reagents for players (it works with or without the shard bar).</summary>
+        public static bool AutoPickupAllowed => (ShardMask & AutoPickupBit) != 0;
 
         /// <summary>What the Help button does: the shard's Welcome guide (it has the Skill Guide and Page staff buttons) when the shard says so, the stock page-a-GM request otherwise. The paperdoll's Help button does the same.</summary>
         public static void OpenHelp()
@@ -214,12 +219,18 @@ namespace ClassicUO.Game.UI.Gumps
         {
             ushort mask = p.Remaining >= 2 ? p.ReadUInt16BE() : (ushort)0;
 
+            // item tooltips are the shard's word and work with or without the shard bar
+            world.ClientFeatures.SetShardTooltips((mask & TooltipsBit) != 0);
+
             if (mask == ShardMask)
             {
                 return;
             }
 
             ShardMask = mask;
+
+            // the shard offers automatic pickup: tell it which kinds this player wants
+            AutoPickup.SendMask();
 
             if (UIManager.GetGump<TopBarGump>() is { } bar)
             {

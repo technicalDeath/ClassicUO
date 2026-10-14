@@ -114,7 +114,7 @@ namespace ClassicUO.Game.UI.Gumps
             _map = World.Map;
             LoadSettings();
 
-            GameActions.Print(World, ResGumps.WorldMapLoading, 0x35);
+            Quiet(() => GameActions.Print(World, ResGumps.WorldMapLoading, 0x35));
             ChangeMap(World.MapIndex);
             OnResize();
 
@@ -1353,7 +1353,7 @@ namespace ClassicUO.Game.UI.Gumps
                     _mapTexture = Texture2D.FromStream(Client.Game.GraphicsDevice, stream);
                 }
 
-                GameActions.Print(World, ResGumps.WorldMapLoaded, 0x48);
+                Quiet(() => GameActions.Print(World, ResGumps.WorldMapLoaded, 0x48));
             }
             catch (ThreadInterruptedException)
             {
@@ -1500,6 +1500,11 @@ namespace ClassicUO.Game.UI.Gumps
             return (_showGridIfZoomed && Zoom >= 4);
         }
 
+        /// <summary>The world map's loading chatter is for people who build maps: a new player sees none of it (the shard hides it; the log still has the markers).</summary>
+        private static void Quiet(System.Action loadingMessage)
+        {
+        }
+
         private void LoadMarkers()
         {
             //return Task.Run(() =>
@@ -1508,7 +1513,7 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     _mapMarkersLoaded = false;
 
-                    GameActions.Print(World, ResGumps.LoadingWorldMapMarkers, 0x2A);
+                    Quiet(() => GameActions.Print(World, ResGumps.LoadingWorldMapMarkers, 0x2A));
 
                     foreach (Texture2D t in _markerIcons.Values)
                     {
@@ -1736,7 +1741,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                             if (markerFile.Markers.Count > 0)
                             {
-                                GameActions.Print(World, $"..{Path.GetFileName(mapFile)} ({markerFile.Markers.Count})", 0x2B);
+                                Quiet(() => GameActions.Print(World, $"..{Path.GetFileName(mapFile)} ({markerFile.Markers.Count})", 0x2B));
                             }
                             _markerFiles.Add(markerFile);
                         }
@@ -1753,7 +1758,7 @@ namespace ClassicUO.Game.UI.Gumps
 
                     _mapMarkersLoaded = true;
 
-                    GameActions.Print(World, string.Format(ResGumps.WorldMapMarkersLoaded0, count), 0x2A);
+                    Quiet(() => GameActions.Print(World, string.Format(ResGumps.WorldMapMarkersLoaded0, count), 0x2A));
                 }
             }
 
@@ -2269,6 +2274,8 @@ namespace ClassicUO.Game.UI.Gumps
                 
             );
 
+            DrawBodyMarker(batcher, gX, gY, halfWidth, halfHeight, Zoom, layerDepth);
+
             if (ShouldDrawGrid())
             {
                 DrawGrid(batcher, srcRect, gX, gY, halfWidth, halfHeight, Zoom, layerDepth);
@@ -2325,6 +2332,52 @@ namespace ClassicUO.Game.UI.Gumps
                     layerDepth
                 );
             }
+        }
+
+        /// <summary>The place where this character died, while its body has not been found: a red cross and the word Body, kept inside the map window (the same marker the body finder strip points at).</summary>
+        private void DrawBodyMarker(UltimaBatcher2D batcher, int x, int y, int width, int height, float zoom, float layerDepth)
+        {
+            Profile profile = ProfileManager.CurrentProfile;
+
+            if (profile == null || !profile.BodyFinderEnabled || profile.BodyMarkerX < 0 || profile.BodyMarkerMap != _map.Index)
+            {
+                return;
+            }
+
+            Point rot = RotatePoint(profile.BodyMarkerX - _center.X, profile.BodyMarkerY - _center.Y, zoom, 1, _flipMap ? 45f : 0f);
+            AdjustPosition(rot.X, rot.Y, width - 4, height - 4, out rot.X, out rot.Y);
+            rot.X = Math.Clamp(rot.X + x + width, x + 6, x + Width - 14);
+            rot.Y = Math.Clamp(rot.Y + y + height, y + 6, y + Height - 14);
+
+            Vector3 plain = ShaderHueTranslator.GetHueVector(0);
+            var red = SolidColorTextureCache.GetTexture(new Color(230, 30, 30));
+            var dark = SolidColorTextureCache.GetTexture(Color.Black);
+
+            for (int i = -5; i <= 5; i++)
+            {
+                batcher.Draw(dark, new Rectangle(rot.X + i - 1, rot.Y + i - 1, 4, 4), plain, layerDepth);
+                batcher.Draw(dark, new Rectangle(rot.X + i - 1, rot.Y - i - 1, 4, 4), plain, layerDepth);
+            }
+
+            for (int i = -5; i <= 5; i++)
+            {
+                batcher.Draw(red, new Rectangle(rot.X + i, rot.Y + i, 2, 2), plain, layerDepth);
+                batcher.Draw(red, new Rectangle(rot.X + i, rot.Y - i, 2, 2), plain, layerDepth);
+            }
+
+            Vector2 size = Fonts.Regular.MeasureString("Body");
+            var hue = ShaderHueTranslator.GetHueVector(0x0021, false, 1f);
+            var shadow = ShaderHueTranslator.GetHueVector(0, false, 1f);
+            int tx = (int) Math.Clamp(rot.X - size.X / 2, x, x + Width - size.X - 8);
+            int ty = rot.Y - 8 - (int) size.Y;
+
+            if (ty < y)
+            {
+                ty = rot.Y + 8;
+            }
+
+            batcher.DrawString(Fonts.Regular, "Body", tx + 1, ty + 1, shadow, layerDepth);
+            batcher.DrawString(Fonts.Regular, "Body", tx, ty, hue, layerDepth);
         }
 
         private void DrawMobile

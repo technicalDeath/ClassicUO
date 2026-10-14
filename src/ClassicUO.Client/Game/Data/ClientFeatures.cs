@@ -31,6 +31,13 @@ namespace ClassicUO.Game.Data
         public CharacterListFlags Flags { get; private set; }
 
         public bool TooltipsEnabled { get; private set; } = true;
+
+        /// <summary>The shard asked for item tooltips through its own menu mask (command 0xA8). The era's character list leaves <see cref="TooltipsEnabled"/> off, and that switch also changes how a single click works (no name label), so the shard's tooltips are a separate switch that only draws and requests.</summary>
+        public bool ShardTooltips { get; private set; }
+
+        public bool TooltipsActive => TooltipsEnabled || ShardTooltips;
+
+        public void SetShardTooltips(bool on) => ShardTooltips = on;
         public bool PopupEnabled { get; private set; }
         public bool PaperdollBooks { get; private set; }
         public uint MaxChars { get; private set; } = 5;
@@ -38,6 +45,7 @@ namespace ClassicUO.Game.Data
         public void SetFlags(CharacterListFlags flags)
         {
             Flags = flags;
+            ShardTooltips = false;
 
             if ((flags & CharacterListFlags.CLF_ONE_CHARACTER_SLOT) != 0)
             {

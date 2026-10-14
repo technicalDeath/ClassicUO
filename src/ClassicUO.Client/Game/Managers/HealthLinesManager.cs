@@ -15,12 +15,21 @@ namespace ClassicUO.Game.Managers
         private const int BAR_WIDTH_HALF = BAR_WIDTH >> 1;
         private const int BAR_HEIGHT_HALF = BAR_HEIGHT >> 1;
 
+        // a bar that belongs to a possible threat (see FriendlyHealthTracker.IsQuiet) is wider and filled amber instead of teal, so it cannot be taken for a friend's or an animal's
+        private const int THREAT_BAR_WIDTH = 50;
+        private const int THREAT_EXTRA_HEIGHT = 0;
+        private const ushort THREAT_FILL_HUE = 0x0030;
+
         const ushort BACKGROUND_GRAPHIC = 0x1068;
         const ushort HP_GRAPHIC = 0x1069;
 
         private readonly World _world;
+        private readonly FriendlyHealthTracker _friendlyHealth = new FriendlyHealthTracker();
 
         public HealthLinesManager(World world) { _world = world; }
+
+        private bool IsQuiet(Mobile mobile) =>
+            FriendlyHealthTracker.IsQuiet(mobile.NotorietyFlag, mobile.IsHuman, mobile.Serial == _world.Player.Serial);
 
         public bool IsEnabled =>
             ProfileManager.CurrentProfile != null && ProfileManager.CurrentProfile.ShowMobilesHP;
@@ -39,6 +48,7 @@ namespace ClassicUO.Game.Managers
             var useNewTargetSystem = ProfileManager.CurrentProfile.UseNewTargetSystem;
             var animations = Client.Game.UO.Animations;
             var isEnabled = IsEnabled;
+            bool hideFullFriendly = ProfileManager.CurrentProfile.HideFullFriendlyHealth;
 
             foreach (Mobile mobile in _world.Mobiles.Values)
             {
@@ -72,6 +82,12 @@ namespace ClassicUO.Game.Managers
                     }
 
                     if (showWhen == 1 && current == max)
+                    {
+                        continue;
+                    }
+
+                    // a targeted friend or animal is left out too: the rule is the same for all of them, so a missing bar always means full health
+                    if (hideFullFriendly && _friendlyHealth.ShouldHide(mobile.Serial, IsQuiet(mobile), current, max, Time.Ticks))
                     {
                         continue;
                     }
@@ -170,8 +186,25 @@ namespace ClassicUO.Game.Managers
 
                 if ((isEnabled && mode >= 1) || newTargSystem || forceDraw)
                 {
-                    DrawHealthLine(batcher, mobile, p.X, p.Y, offsetY, passive, newTargSystem, layerDepth);
+                    bool threat = !newTargSystem && !IsQuiet(mobile);
+
+                    DrawHealthLine(batcher, mobile, p.X, p.Y, offsetY, passive, newTargSystem, threat, layerDepth);
                 }
+            }
+
+            _friendlyHealth.Prune(Time.Ticks);
+        }
+
+        /// <summary>The stock bar tiles its fill art, which is right at the stock width; a threat's wider bar stretches it instead, so the art's edge does not repeat inside the bar.</summary>
+        private static void DrawBarPart(UltimaBatcher2D batcher, bool stretch, Microsoft.Xna.Framework.Graphics.Texture2D texture, Rectangle destination, Rectangle source, Vector3 hue, float layerDepth)
+        {
+            if (stretch)
+            {
+                batcher.Draw(texture, destination, source, hue, layerDepth);
+            }
+            else
+            {
+                batcher.DrawTiled(texture, destination, source, hue, layerDepth);
             }
         }
 
@@ -183,6 +216,7 @@ namespace ClassicUO.Game.Managers
             int offsetY,
             bool passive,
             bool newTargetSystem,
+            bool threat,
             float layerDepth
         )
         {
@@ -191,7 +225,8 @@ namespace ClassicUO.Game.Managers
                 return;
             }
 
-            int per = BAR_WIDTH * entity.HitsPercentage / 100;
+            int barWidth = threat ? THREAT_BAR_WIDTH : BAR_WIDTH;
+            int per = barWidth * entity.HitsPercentage / 100;
 
             Mobile mobile = entity as Mobile;
 
@@ -308,9 +343,14 @@ namespace ClassicUO.Game.Managers
 
             ref readonly var gumpInfo = ref Client.Game.UO.Gumps.GetGump(BACKGROUND_GRAPHIC);
 
+            int backgroundHeight = gumpInfo.UV.Height;
+            int barHeight = threat ? backgroundHeight + THREAT_EXTRA_HEIGHT : backgroundHeight;
+            int bx = x - (barWidth - BAR_WIDTH) / 2;
+            int by = y - (barHeight - backgroundHeight) / 2;
+
             batcher.Draw(
                 gumpInfo.Texture,
-                new Rectangle(x, y, gumpInfo.UV.Width * MULTIPLER, gumpInfo.UV.Height * MULTIPLER),
+                new Rectangle(bx, by, (threat ? barWidth : gumpInfo.UV.Width) * MULTIPLER, barHeight * MULTIPLER),
                 gumpInfo.UV,
                 hueVecNoto,
                 layerDepth
@@ -329,13 +369,15 @@ namespace ClassicUO.Game.Managers
 
                 gumpInfo = ref Client.Game.UO.Gumps.GetGump(HP_GRAPHIC);
 
-                batcher.DrawTiled(
+                DrawBarPart(
+                    batcher,
+                    threat,
                     gumpInfo.Texture,
                     new Rectangle(
-                        x + per * MULTIPLER - offset,
-                        y,
-                        (BAR_WIDTH - per) * MULTIPLER - offset / 2,
-                        gumpInfo.UV.Height * MULTIPLER
+                        bx + per * MULTIPLER - offset,
+                        by,
+                        (barWidth - per) * MULTIPLER - offset / 2,
+                        (threat ? barHeight : gumpInfo.UV.Height) * MULTIPLER
                     ),
                     gumpInfo.UV,
                     hueVecNoto,
@@ -343,7 +385,7 @@ namespace ClassicUO.Game.Managers
                 );
             }
 
-            hue = 90;
+            hue = threat ? THREAT_FILL_HUE : (ushort) 90;
 
             if (per > 0)
             {
@@ -362,9 +404,11 @@ namespace ClassicUO.Game.Managers
                 hueVecNoto.X = hue;
 
                 gumpInfo = ref Client.Game.UO.Gumps.GetGump(HP_GRAPHIC);
-                batcher.DrawTiled(
+                DrawBarPart(
+                    batcher,
+                    threat,
                     gumpInfo.Texture,
-                    new Rectangle(x, y, per * MULTIPLER, gumpInfo.UV.Height * MULTIPLER),
+                    new Rectangle(bx, by, per * MULTIPLER, (threat ? barHeight : gumpInfo.UV.Height) * MULTIPLER),
                     gumpInfo.UV,
                     hueVecNoto,
                     layerDepth

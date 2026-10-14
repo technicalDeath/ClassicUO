@@ -30,6 +30,9 @@ namespace ClassicUO.Game.UI.Gumps
         /// <summary>Raised when one of the four switches changes in the profile, from any window, so every window that shows them can follow.</summary>
         public static event Action Changed;
 
+        /// <summary>Lets the sibling switch set (AutoPickup) wake the same windows.</summary>
+        public static void NotifyChanged() => Changed?.Invoke();
+
         public static bool Get(Profile p, AutoUseOption option) => p != null && option switch
         {
             AutoUseOption.Bandage => p.AutoBandage,
@@ -89,6 +92,47 @@ namespace ClassicUO.Game.UI.Gumps
 
         private static readonly byte[] HealCodes = { 12, 11, 10 };      // greater, heal, lesser
         private static readonly byte[] RefreshCodes = { 32, 31 };       // total refresh, refresh
+
+        private static long _forceCureUntil;
+
+        /// <summary>The Alt+U hotkey: for a few seconds the cure step runs as if the Cure option were ticked (the server names the right potion), so a player who keeps auto-cure off can still cure with one key.</summary>
+        public static void CureByHotkey(World world)
+        {
+            if (!world.Player.IsPoisoned)
+            {
+                GameActions.Print(world, "You are not poisoned.");
+
+                return;
+            }
+
+            _forceCureUntil = Time.Ticks + 4000;
+            _noCureUntil = 0;
+            _toldNoCure = false;
+            _nextThink = 0;
+        }
+
+        /// <summary>The Alt+H and Alt+F hotkeys: drink the strongest Heal or Refresh potion in the pack, as clicking it on the potion bar would; says so when there is none or the bar is busy. Works with the potion bar on.</summary>
+        public static void DrinkByHotkey(World world, bool heal)
+        {
+            PotionBarGump potions = UIManager.GetGump<PotionBarGump>();
+
+            if (potions == null)
+            {
+                GameActions.Print(world, "The potion bar is not open.");
+
+                return;
+            }
+
+            if (!potions.CanAct)
+            {
+                return;
+            }
+
+            if (!potions.DrinkStrongest(heal ? HealCodes : RefreshCodes))
+            {
+                GameActions.Print(world, heal ? "You have no Heal potion." : "You have no Refresh potion.");
+            }
+        }
 
         private static long _nextThink;
         private static long _nextAction;
@@ -169,7 +213,7 @@ namespace ClassicUO.Game.UI.Gumps
             Profile profile = ProfileManager.CurrentProfile;
             PlayerMobile me = world.Player;
 
-            if (!AnyOn(profile) || me.IsDead || now < _nextAction)
+            if ((!AnyOn(profile) && now >= _forceCureUntil) || me.IsDead || now < _nextAction)
             {
                 return;
             }
@@ -191,7 +235,7 @@ namespace ClassicUO.Game.UI.Gumps
                 _toldNoCure = false;
             }
 
-            if (profile.AutoCure && poisoned && potions != null && potions.CanAct)
+            if ((profile.AutoCure || now < _forceCureUntil) && poisoned && potions != null && potions.CanAct)
             {
                 if (DoCure(world, potions, now))
                 {

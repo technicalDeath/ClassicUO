@@ -803,14 +803,16 @@ namespace ClassicUO.Game.Scenes
         /// </summary>
         private void OfferInfoBar(Profile profile)
         {
-            if (!profile.ShowInfoBar || profile.InfoBarOffered)
+            // The shard shows hits, mana and stamina as numbers on the player's own minimal health bar (HealthBarGumpCustom), not in a separate info bar: that bar is opened once here
+            // (a saved one comes back on login, and closing it stays closed). The info bar is no longer offered; a player can still open it from Options.
+            if (profile.InfoBarOffered)
             {
                 return;
             }
 
             profile.InfoBarOffered = true;
 
-            if (UIManager.GetGump<InfoBarGump>() != null)
+            if (UIManager.GetGump<HealthBarGumpCustom>(_world.Player.Serial) != null || UIManager.GetGump<HealthBarGump>(_world.Player.Serial) != null)
             {
                 return;
             }
@@ -826,7 +828,9 @@ namespace ClassicUO.Game.Scenes
                 y = potions.Y + 8;
             }
 
-            var bar = new InfoBarGump(_world) { X = x, Y = y };
+            Gump bar = profile.CustomBarsToggled
+                ? new HealthBarGumpCustom(_world, _world.Player) { X = x, Y = y }
+                : new HealthBarGump(_world, _world.Player) { X = x, Y = y };
             UIManager.Add(bar);
             bar.SetInScreen();
         }

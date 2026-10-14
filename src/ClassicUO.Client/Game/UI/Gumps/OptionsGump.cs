@@ -112,7 +112,7 @@ namespace ClassicUO.Game.UI.Gumps
         private ClickableColorBox _innocentColorPickerBox, _friendColorPickerBox, _crimialColorPickerBox, _canAttackColorPickerBox, _enemyColorPickerBox, _murdererColorPickerBox, _neutralColorPickerBox, _beneficColorPickerBox, _harmfulColorPickerBox;
         private HSliderBar _lightBar;
         private Checkbox _buffBarTime, _uiButtonsSingleClick, _queryBeforAttackCheckbox, _queryBeforeBeneficialCheckbox, _spellColoringCheckbox, _spellFormatCheckbox, _enableFastSpellsAssign;
-        private Checkbox _newTargetSystem, _showDPSCheckbox, _showNumbersCheckbox;
+        private Checkbox _newTargetSystem, _showDPSCheckbox, _showNumbersCheckbox, _hideFullFriendlyHealth;
 
         // macro
         private MacroControl _macroControl;
@@ -340,6 +340,19 @@ namespace ClassicUO.Game.UI.Gumps
                     10 + 30 * i++,
                     140,
                     25,
+                    ButtonAction.SwitchPage,
+                    "Auto pickup"
+                ) { ButtonParameter = 13 }
+            );
+
+            Add
+            (
+                new NiceButton
+                (
+                    10,
+                    10 + 30 * i++,
+                    140,
+                    25,
                     ButtonAction.Activate,
                     ResGumps.IgnoreListManager
                 )
@@ -423,6 +436,7 @@ namespace ClassicUO.Game.UI.Gumps
             BuildInfoBar();
             BuildContainers();
             BuildExperimental();
+            BuildAutoPickup();
 
             ChangePage(1);
         }
@@ -739,6 +753,18 @@ namespace ClassicUO.Game.UI.Gumps
                     100
                 ),
                 2
+            );
+
+            section2.Add
+            (
+                _hideFullFriendlyHealth = AddCheckBox
+                (
+                    null,
+                    "Hide full health bars of friendly and neutral characters",
+                    _currentProfile.HideFullFriendlyHealth,
+                    startX,
+                    startY
+                )
             );
 
             section2.Add
@@ -3187,6 +3213,68 @@ namespace ClassicUO.Game.UI.Gumps
             Add(rightArea, PAGE);
         }
 
+        private Checkbox[] _autoPickupBoxes;
+
+        /// <summary>The Auto pickup page: the same three switches as the combat bar's gear panel (arrows, bolts, reagents), offered only while the shard allows the feature.</summary>
+        private void BuildAutoPickup()
+        {
+            const int PAGE = 13;
+
+            ScrollArea rightArea = new ScrollArea(190, 20, WIDTH - 210, 420, true);
+
+            int startX = 5;
+            int startY = 5;
+
+            Label Wrapped(string words, int x, int y, int width)
+            {
+                var label = new Label(words, true, HUE_FONT, width) { X = x, Y = y };
+                rightArea.Add(label);
+
+                return label;
+            }
+
+            Label text = AddLabel(rightArea, "Automatic pickup of what you shoot and cast with", startX, startY);
+            startY += text.Height + 6;
+
+            if (!AutoPickup.Allowed)
+            {
+                text = AddLabel(rightArea, "This shard has automatic pickup switched off.", startX, startY);
+            }
+            else
+            {
+                text = Wrapped("As you walk, the shard picks up what lies within one step of you, only the kinds your skills use. The same switches are on the combat bar's gear button.", startX, startY, 440);
+                startY += text.Height + 8;
+                startX += 20;
+                _autoPickupBoxes = new Checkbox[3];
+
+                for (int i = 0; i < _autoPickupBoxes.Length; i++)
+                {
+                    var option = (AutoPickupOption)i;
+                    _autoPickupBoxes[i] = AddCheckBox(rightArea, AutoPickup.LabelOf(option), AutoPickup.Get(_currentProfile, option), startX, startY);
+                    startY += _autoPickupBoxes[i].Height + 1;
+                    text = Wrapped(AutoPickup.DetailOf(option), startX + 22, startY, 420);
+                    startY += text.Height + 8;
+                }
+
+                AutoUse.Changed += RefreshAutoPickupBoxes;
+            }
+
+            Add(rightArea, PAGE);
+        }
+
+        private void RefreshAutoPickupBoxes()
+        {
+            if (_autoPickupBoxes == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _autoPickupBoxes.Length; i++)
+            {
+                _autoPickupBoxes[i].IsChecked = AutoPickup.Get(_currentProfile, (AutoPickupOption)i);
+            }
+        }
+
         private void RefreshAutoUseBoxes()
         {
             if (_autoUseBoxes == null)
@@ -3203,6 +3291,7 @@ namespace ClassicUO.Game.UI.Gumps
         public override void Dispose()
         {
             AutoUse.Changed -= RefreshAutoUseBoxes;
+            AutoUse.Changed -= RefreshAutoPickupBoxes;
             base.Dispose();
         }
 
@@ -3254,6 +3343,14 @@ namespace ClassicUO.Game.UI.Gumps
                 for (int i = 0; i < _autoUseBoxes.Length; i++)
                 {
                     AutoUse.Set(_currentProfile, (AutoUseOption)i, _autoUseBoxes[i].IsChecked);
+                }
+            }
+
+            if (_autoPickupBoxes != null)
+            {
+                for (int i = 0; i < _autoPickupBoxes.Length; i++)
+                {
+                    AutoPickup.Set(_currentProfile, (AutoPickupOption)i, _autoPickupBoxes[i].IsChecked);
                 }
             }
         }
@@ -3715,6 +3812,7 @@ namespace ClassicUO.Game.UI.Gumps
                     _showHpMobile.IsChecked = false;
                     _hpComboBox.SelectedIndex = 0;
                     _hpComboBoxShowWhen.SelectedIndex = 0;
+                    _hideFullFriendlyHealth.IsChecked = true;
                     _highlightByPoisoned.IsChecked = true;
                     _highlightByParalyzed.IsChecked = true;
                     _highlightByInvul.IsChecked = true;
@@ -3933,6 +4031,17 @@ namespace ClassicUO.Game.UI.Gumps
 
                     break;
 
+                case 13: // auto pickup
+                    if (_autoPickupBoxes != null)
+                    {
+                        foreach (Checkbox box in _autoPickupBoxes)
+                        {
+                            box.IsChecked = true; // the shard's default for a new profile
+                        }
+                    }
+
+                    break;
+
                 case 12: // experimental
 
                     _disableDefaultHotkeys.IsChecked = false;
@@ -3972,6 +4081,7 @@ namespace ClassicUO.Game.UI.Gumps
             _currentProfile.InvulnerableHue = _invulnerableColorPickerBox.Hue;
             _currentProfile.MobileHPType = _hpComboBox.SelectedIndex;
             _currentProfile.MobileHPShowWhen = _hpComboBoxShowWhen.SelectedIndex;
+            _currentProfile.HideFullFriendlyHealth = _hideFullFriendlyHealth.IsChecked;
             _currentProfile.UseNewTargetSystem = _newTargetSystem.IsChecked;
             _currentProfile.HoldDownKeyTab = _holdDownKeyTab.IsChecked;
             _currentProfile.HoldDownKeyAltToCloseAnchored = _holdDownKeyAlt.IsChecked;

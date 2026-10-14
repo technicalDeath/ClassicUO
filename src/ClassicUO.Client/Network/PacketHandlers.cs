@@ -312,7 +312,7 @@ namespace ClassicUO.Network
 
         public static void SendMegaClilocRequests(World world)
         {
-            if (world.ClientFeatures.TooltipsEnabled && Handler._clilocRequests.Count != 0)
+            if (world.ClientFeatures.TooltipsActive && Handler._clilocRequests.Count != 0)
             {
                 if (Client.Game.UO.Version >= Utility.ClientVersion.CV_5090)
                 {
@@ -5409,10 +5409,16 @@ namespace ClassicUO.Network
 
         private static void OPLInfo(World world, ref StackDataReader p)
         {
-            if (world.ClientFeatures.TooltipsEnabled)
+            if (world.ClientFeatures.TooltipsActive)
             {
                 uint serial = p.ReadUInt32BE();
                 uint revision = p.ReadUInt32BE();
+
+                // the shard's tooltips are for items only: a mobile's list is never asked for
+                if (!world.ClientFeatures.TooltipsEnabled && !SerialHelper.IsItem(serial))
+                {
+                    return;
+                }
 
                 if (!world.OPL.IsRevisionEquals(serial, revision))
                 {
@@ -7099,7 +7105,7 @@ namespace ClassicUO.Network
                     )
                 )
                 {
-                    if (world.ClientFeatures.TooltipsEnabled && gump.Children.Count != 0)
+                    if (world.ClientFeatures.TooltipsActive && gump.Children.Count != 0)
                     {
                         gump.Children[gump.Children.Count - 1].SetTooltip(
                             SerialHelper.Parse(gparams[1])

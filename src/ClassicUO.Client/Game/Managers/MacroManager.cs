@@ -258,6 +258,9 @@ namespace ClassicUO.Game.Managers
             AddShardHotkey("Status", (SDL.SDL_Keycode) 99, true, false, false, new MacroObject(MacroType.Open, MacroSubType.Status) { SubMenuType = 1 });
             AddShardHotkey("Bandage self", (SDL.SDL_Keycode) 98, true, false, false, new MacroObject(MacroType.BandageSelf, MacroSubType.MSC_NONE) { SubMenuType = 0 });
             AddShardHotkey("Bandage target", (SDL.SDL_Keycode) 98, true, false, true, new MacroObject(MacroType.BandageTarget, MacroSubType.MSC_NONE) { SubMenuType = 0 });
+            AddShardHotkey("Drink heal potion", (SDL.SDL_Keycode) 104, true, false, false, new MacroObject(MacroType.DrinkHealPotion, MacroSubType.MSC_NONE) { SubMenuType = 0 });
+            AddShardHotkey("Drink refresh potion", (SDL.SDL_Keycode) 102, true, false, false, new MacroObject(MacroType.DrinkRefreshPotion, MacroSubType.MSC_NONE) { SubMenuType = 0 });
+            AddShardHotkey("Cure poison", (SDL.SDL_Keycode) 117, true, false, false, new MacroObject(MacroType.DrinkCurePotion, MacroSubType.MSC_NONE) { SubMenuType = 0 });
             AddShardHotkey("Show names", (SDL.SDL_Keycode) 110, true, false, false, new MacroObject(MacroType.NamesOnOff, MacroSubType.MSC_NONE) { SubMenuType = 0 });
         }
 
@@ -1547,6 +1550,17 @@ namespace ClassicUO.Game.Managers
 
                     break;
 
+                case MacroType.DrinkCurePotion:
+                    AutoUse.CureByHotkey(_world);
+
+                    break;
+
+                case MacroType.DrinkHealPotion:
+                case MacroType.DrinkRefreshPotion:
+                    AutoUse.DrinkByHotkey(_world, macro.Code == MacroType.DrinkHealPotion);
+
+                    break;
+
                 case MacroType.UsePotion:
                     scantype = (ScanTypeObject)(macro.SubCode - MacroSubType.ConfusionBlastPotion);
 
@@ -2363,7 +2377,10 @@ namespace ClassicUO.Game.Managers
         CloseCorpses,
         UseObject,
         LookAtMouse,
-        UseCounterBarSlot
+        UseCounterBarSlot,
+        DrinkHealPotion,
+        DrinkRefreshPotion,
+        DrinkCurePotion
     }
 
     internal enum MacroSubType

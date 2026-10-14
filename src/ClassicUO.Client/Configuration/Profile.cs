@@ -150,6 +150,13 @@ namespace ClassicUO.Configuration
 
         public bool AutoCure { get; set; }
 
+        /// <summary>Which kinds the shard may pick up for the player (see AutoPickup): arrows, bolts and reagents; sent to the shard at login and on every change.</summary>
+        public bool AutoPickupArrows { get; set; }
+
+        public bool AutoPickupBolts { get; set; }
+
+        public bool AutoPickupReagents { get; set; }
+
         /// <summary>The "where is my body" strip: where the player last died (-1 when there is no body to find) and whether the strip is shown at all.</summary>
         public bool BodyFinderEnabled { get; set; } = true;
 
@@ -398,6 +405,9 @@ namespace ClassicUO.Configuration
 
         /// <summary>Whether the numbers that float over a head (damage, and the shard's heals) are shown.</summary>
         public bool ShowOverheadNumbers { get; set; } = true;
+
+        /// <summary>Leave out the health bar of a friendly or neutral character (your own, a blue, green or yellow one, and the grey animals) while it is at full health; a bar that has just filled stays for five seconds. The absence of a bar then means full health.</summary>
+        public bool HideFullFriendlyHealth { get; set; } = true;
 
         public static uint GumpsVersion { get; private set; }
 

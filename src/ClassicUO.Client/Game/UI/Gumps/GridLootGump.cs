@@ -462,7 +462,7 @@ namespace ClassicUO.Game.UI.Gumps
                 _hit = new HitBox(0, 15, size, size, null, 0f);
                 Add(_hit);
 
-                if (_gump.World.ClientFeatures.TooltipsEnabled)
+                if (_gump.World.ClientFeatures.TooltipsActive)
                 {
                     _hit.SetTooltip(item);
                 }

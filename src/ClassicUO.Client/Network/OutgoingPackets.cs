@@ -3575,6 +3575,12 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
+        /// <summary>Tells the shard which kinds to pick up for this player (AutoPickupService, command 0xAC): one byte, bit 0 arrows, bit 1 bolts, bit 2 reagents.</summary>
+        public static void Send_AutoPickupMask(this NetClient socket, byte mask)
+        {
+            socket.Send(new byte[] { 0xBF, 0, 6, 0, 0xAC, mask });
+        }
+
         /// <summary>Asks the shard which cure potion to drink for the poison the player has (AutoUseService, command 0xAA); the answer is the same command.</summary>
         public static void Send_AutoUseRequest(this NetClient socket)
         {
