@@ -119,6 +119,7 @@ namespace ClassicUO.Game.UI.Gumps
         private Checkbox _overrideAllFonts;
         private Combobox _overrideAllFontsIsUnicodeCheckbox;
         private Combobox _overrideContainerLocationSetting;
+        private Combobox _containerStyle;
         private ClickableColorBox _poisonColorPickerBox, _paralyzedColorPickerBox, _invulnerableColorPickerBox;
         private NiceButton _randomizeColorsButton;
         private Checkbox _restorezoomCheckbox, _zoomCheckbox;
@@ -3720,7 +3721,13 @@ namespace ClassicUO.Game.UI.Gumps
             );
 
             startX = 5;
-            startY += _overrideContainerLocation.Height + 2 + 10;
+            startY += _overrideContainerLocation.Height + 6;
+
+            AddLabel(rightArea, "Container style", startX, startY + 2);
+
+            _containerStyle = AddCombobox(rightArea, new[] { "Original", "Grid (cells, search, sort, lock)" }, _currentProfile.ContainerStyle == 1 ? 1 : 0, startX + 110, startY, 230);
+
+            startY += _containerStyle.Height + 16;
 
             NiceButton button = new NiceButton
             (
@@ -4026,6 +4033,7 @@ namespace ClassicUO.Game.UI.Gumps
                     _highlightContainersWhenMouseIsOver.IsChecked = false;
                     _overrideContainerLocation.IsChecked = false;
                     _overrideContainerLocationSetting.SelectedIndex = 0;
+                    _containerStyle.SelectedIndex = 0;
                     _backpackStyle.SelectedIndex = 0;
                     _hueContainerGumps.IsChecked = true;
 
@@ -4618,6 +4626,7 @@ namespace ClassicUO.Game.UI.Gumps
             _currentProfile.RelativeDragAndDropItems = _relativeDragAnDropItems.IsChecked;
             _currentProfile.HighlightContainerWhenSelected = _highlightContainersWhenMouseIsOver.IsChecked;
             _currentProfile.HueContainerGumps = _hueContainerGumps.IsChecked;
+            _currentProfile.ContainerStyle = _containerStyle.SelectedIndex == 1 ? 1 : 0;
 
             if (_currentProfile.BackpackStyle != _backpackStyle.SelectedIndex)
             {

@@ -114,6 +114,12 @@ namespace ClassicUO.Configuration
         /// <summary>The main backpack window is drawn 50% larger (nine-sliced), with the items' positions scaled to match; a button on the pack switches it.</summary>
         public bool BigBackpack { get; set; }
 
+        /// <summary>How containers are drawn: 0 the classic window with items where the server put them, 1 the shard grid (cells, search, sort, lock).</summary>
+        public int ContainerStyle { get; set; }
+
+        /// <summary>The grid view's search: false marks matches with a gold frame, true hides everything else.</summary>
+        public bool GridSearchHide { get; set; }
+
         /// <summary>The shard's potion bar under the game window (default-profile.json turns it on for new profiles).</summary>
         public bool PotionBarEnabled { get; set; }
 

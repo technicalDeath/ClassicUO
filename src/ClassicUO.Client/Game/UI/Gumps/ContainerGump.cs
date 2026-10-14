@@ -14,7 +14,7 @@ using System.Xml;
 
 namespace ClassicUO.Game.UI.Gumps
 {
-    internal class ContainerGump : TextContainerGump
+    internal partial class ContainerGump : TextContainerGump
     {
         private long _corpseEyeTicks;
         private ContainerData _data;
@@ -84,6 +84,8 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             }
 
+            _grid = WantsGrid(item, Graphic);
+
             BuildGump();
 
             if (Graphic == CORPSES_GUMP)
@@ -118,6 +120,14 @@ namespace ClassicUO.Game.UI.Gumps
             get => _isMinimized;
             set
             {
+                if (_grid)
+                {
+                    _isMinimized = value;
+                    IsVisible = !value;
+
+                    return;
+                }
+
                 //if (_isMinimized != value)
                 {
                     _isMinimized = value;
@@ -147,6 +157,13 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void BuildGump()
         {
+            if (_grid)
+            {
+                BuildGrid();
+
+                return;
+            }
+
             CanMove = true;
             CanCloseWithRightClick = true;
             WantUpdateSize = false;
@@ -242,6 +259,7 @@ namespace ClassicUO.Game.UI.Gumps
             Entity it = SelectedObject.Object as Entity;
             uint serial = it != null ? it.Serial : 0;
             uint dropcontainer = LocalSerial;
+            int dropSlot = _grid ? SlotAt(x, y) : -1;
 
             if (
                 World.TargetManager.IsTargeting
@@ -438,6 +456,12 @@ namespace ClassicUO.Game.UI.Gumps
                         y = (int)(y / scale);
                     }
 
+                    if (_grid && dropcontainer == LocalSerial)
+                    {
+                        GridNoteDrop(Client.Game.UO.GameCursor.ItemHold.Serial, dropSlot);
+                        _relayout = true;
+                    }
+
                     GameActions.DropItem(
                         Client.Game.UO.GameCursor.ItemHold.Serial,
                         x,
@@ -493,6 +517,13 @@ namespace ClassicUO.Game.UI.Gumps
                 SelectedObject.SelectedContainer = item;
             }
 
+            if (_grid)
+            {
+                GridUpdate();
+
+                return;
+            }
+
             if (Graphic == CORPSES_GUMP && _corpseEyeTicks < Time.Ticks)
             {
                 _eyeCorspeOffset = _eyeCorspeOffset == 0 ? 1 : 0;
@@ -506,6 +537,13 @@ namespace ClassicUO.Game.UI.Gumps
 
         protected override void UpdateContents()
         {
+            if (_grid)
+            {
+                _relayout = true;
+
+                return;
+            }
+
             Clear();
             BuildGump();
             IsMinimized = IsMinimized;
@@ -547,6 +585,11 @@ namespace ClassicUO.Game.UI.Gumps
 
         private float GetScale()
         {
+            if (_grid)
+            {
+                return 1f;
+            }
+
             return (IsChessboard || IsBackgammonBoard) ? 1f : UIManager.ContainerScale * (IsBigPack ? BigPackFactor : 1f);
         }
 
@@ -565,7 +608,7 @@ namespace ClassicUO.Game.UI.Gumps
             _sizeIcon = null;
             _sizeHit = null;
 
-            if (!IsMainPack || IsChessboard || IsBackgammonBoard)
+            if (_grid || !IsMainPack || IsChessboard || IsBackgammonBoard)
             {
                 return;
             }
@@ -789,6 +832,11 @@ namespace ClassicUO.Game.UI.Gumps
         public override void Dispose()
         {
             Item item = World.Items.Get(LocalSerial);
+            if (_grid)
+            {
+                GridDispose();
+            }
+
 
             if (item != null)
             {

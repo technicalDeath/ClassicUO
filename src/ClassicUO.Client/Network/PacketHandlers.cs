@@ -1540,6 +1540,11 @@ namespace ClassicUO.Network
 
                     UIManager.Add(opened);
 
+                    if (opened.IsGrid && opened.TryRestoreGridPlacement())
+                    {
+                        dock = false;
+                    }
+
                     if (dock)
                     {
                         // the backpack, a bag on the ground, a corpse: in the dark column beside the game window, under the other windows, while there is room

@@ -122,7 +122,7 @@ namespace ClassicUO.Game.UI.Controls
                 partialHue = false;
             }
 
-            Vector3 hueVector = ShaderHueTranslator.GetHueVector(hue, partialHue, 1);
+            Vector3 hueVector = ShaderHueTranslator.GetHueVector(hue, partialHue, Alpha);
 
             ref readonly var spriteInfo = ref _is_gump
                 ? ref Client.Game.UO.Gumps.GetGump(Graphic)
