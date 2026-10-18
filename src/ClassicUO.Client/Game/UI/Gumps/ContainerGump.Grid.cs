@@ -880,7 +880,9 @@ namespace ClassicUO.Game.UI.Gumps
                 Height = CellSize;
             }
 
-            public override bool Contains(int x, int y) => x >= 0 && y >= 0 && x < CellSize && y < CellSize;
+            // Control.HitTest has already tested the pointer against this cell's bounds with the scroll offset allowed for; its second test hands Contains coordinates that
+            // are not corrected for that offset, so a bounds check here fails for every cell once the list is scrolled. Whatever got this far is inside the cell.
+            public override bool Contains(int x, int y) => !IsDisposed;
 
             public override bool AddToRenderLists(RenderLists renderLists, int x, int y, ref float layerDepthRef)
             {
