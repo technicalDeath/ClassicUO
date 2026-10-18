@@ -49,6 +49,21 @@ namespace ClassicUO.Game.UI.Gumps
             set => _background.Hue = value;
         }
 
+        /// <summary>The spell's tooltip, with the shard's chances when it has sent them.</summary>
+        public void RefreshChanceTooltip()
+        {
+            int cliloc = GetSpellTooltip(_spell.ID);
+
+            if (cliloc != 0)
+            {
+                string text = Client.Game.UO.FileManager.Clilocs.GetString(cliloc);
+                string described = SpellChances.Describe(_spell.ID, text);
+
+                // the chance lines need more room than the spell's one-line text
+                SetTooltip(described, described == text ? 80 : 220);
+            }
+        }
+
         private void BuildGump()
         {
             Add(
@@ -58,12 +73,7 @@ namespace ClassicUO.Game.UI.Gumps
                 }
             );
 
-            int cliloc = GetSpellTooltip(_spell.ID);
-
-            if (cliloc != 0)
-            {
-                SetTooltip(Client.Game.UO.FileManager.Clilocs.GetString(cliloc), 80);
-            }
+            RefreshChanceTooltip();
 
             WantUpdateSize = true;
             AcceptMouseInput = true;

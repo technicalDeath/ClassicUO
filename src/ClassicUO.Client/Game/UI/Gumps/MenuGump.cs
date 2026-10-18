@@ -1,7 +1,8 @@
-﻿// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Game.Scenes;
 using ClassicUO.Game.UI.Controls;
+using System.Collections.Generic;
 using ClassicUO.Network;
 using ClassicUO.Renderer;
 using Microsoft.Xna.Framework;
@@ -15,6 +16,13 @@ namespace ClassicUO.Game.UI.Gumps
         private bool _isDown,
             _isLeft;
         private readonly HSliderBar _slider;
+        private readonly Dictionary<int, (ItemView View, string Name)> _views = new Dictionary<int, (ItemView, string)>();
+
+        /// <summary>The shard's extended command with each entry's gain and make chance, for the menu with that serial.</summary>
+        public const int ChancesCommand = 0xAE;
+
+        /// <summary>The byte for an entry that is not an item.</summary>
+        public const byte NoChance = 255;
 
         public MenuGump(World world, uint serial, uint serv, string name) : base(world, serial, serv)
         {
@@ -110,6 +118,8 @@ namespace ClassicUO.Game.UI.Gumps
                 Y = y
             };
 
+            _views[index] = (view, name);
+
             view.MouseDoubleClick += (sender, e) =>
             {
                 NetClient.Socket.Send_MenuResponse(
@@ -129,6 +139,20 @@ namespace ClassicUO.Game.UI.Gumps
 
             _container.CalculateWidth();
             _slider.MaxValue = _container.MaxValue;
+        }
+
+        /// <summary>
+        /// The shard sent each entry's gain and make chance (entry i is the view with index i + 1): they go in the entry's tooltip, under its name.
+        /// </summary>
+        public void SetChances(byte[] gains, byte[] makes)
+        {
+            for (int i = 0; i < gains.Length; i++)
+            {
+                if (gains[i] != NoChance && _views.TryGetValue(i + 1, out var entry))
+                {
+                    entry.View.SetTooltip($"{entry.Name}\nChance to raise your skill: {gains[i]}%\nChance to make it: {makes[i]}%");
+                }
+            }
         }
 
         protected override void CloseWithRightClick()

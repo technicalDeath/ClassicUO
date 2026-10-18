@@ -4181,6 +4181,34 @@ namespace ClassicUO.Network
 
                     break;
 
+                case OverheadNumbers.StaminaCommandId: // the shard says how much stamina a hit took or a refresh potion gave back
+                    OverheadNumbers.OnStamina(world, ref p);
+
+                    break;
+
+                case SpellChances.CommandId: // the shard sends each spell's gain and cast chance
+                    SpellChances.OnCommand(ref p);
+
+                    break;
+
+                case MenuGump.ChancesCommand: // the shard sends each craft menu entry's gain and make chance
+                    {
+                        uint menuSerial = p.ReadUInt32BE();
+                        int entryCount = p.ReadUInt16BE();
+                        byte[] gains = new byte[entryCount];
+                        byte[] makes = new byte[entryCount];
+
+                        for (int i = 0; i < entryCount && p.Remaining >= 2; i++)
+                        {
+                            gains[i] = p.ReadUInt8();
+                            makes[i] = p.ReadUInt8();
+                        }
+
+                        UIManager.GetGump<MenuGump>(menuSerial)?.SetChances(gains, makes);
+                    }
+
+                    break;
+
                 case AutoUse.CommandId: // the shard names the cure potion that fits the poison
                     AutoUse.OnCureReply(ref p);
 

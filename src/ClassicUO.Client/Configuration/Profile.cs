@@ -412,6 +412,12 @@ namespace ClassicUO.Configuration
         /// <summary>Whether the numbers that float over a head (damage, and the shard's heals) are shown.</summary>
         public bool ShowOverheadNumbers { get; set; } = true;
 
+        /// <summary>Whether the stamina a hit takes from you floats over your head (the shard's stamina numbers).</summary>
+        public bool ShowStaminaLostNumbers { get; set; } = true;
+
+        /// <summary>Whether the stamina a refresh potion gives back floats over your head (the shard's stamina numbers).</summary>
+        public bool ShowStaminaRestoredNumbers { get; set; } = true;
+
         /// <summary>Leave out the health bar of a friendly or neutral character (your own, a blue, green or yellow one, and the grey animals) while it is at full health; a bar that has just filled stays for five seconds. The absence of a bar then means full health.</summary>
         public bool HideFullFriendlyHealth { get; set; } = true;
 

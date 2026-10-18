@@ -40,6 +40,11 @@ namespace ClassicUO.Game.UI.Gumps
         private const int Docked = 2;
         private const int ScanMilliseconds = 250;
         private const int Circles = 8;
+        private const int MeditationSkill = 46;
+
+        private const string MeditateTooltip =
+            "Meditate: rest, and your mana comes back twice as fast. Your hands must be free (no weapon or shield) and you must keep still: moving, " +
+            "casting or fighting ends it. It can fail at low skill. The Meditation skill rises as your mana comes back.";
 
         // the mana a Magery spell costs, by circle (the era values)
         private static readonly int[] CircleMana = { 4, 6, 9, 11, 14, 20, 40, 50 };
@@ -218,6 +223,13 @@ namespace ClassicUO.Game.UI.Gumps
                 Add(cell);
                 x += CellWidth + Gap;
             }
+
+            // Meditate, so a caster finds the skill that brings mana back
+            x += GroupGap - Gap;
+            var meditate = new Label("Meditate", true, 0x0035, 0, 1, FontStyle.BlackBorder) { AcceptMouseInput = false, X = x + 3, Y = Pad + (IconBox - 14) / 2 };
+            Add(meditate);
+            AddButton(x, Pad, meditate.Width + 6, IconBox, MeditateTooltip, () => GameActions.UseSkill(MeditationSkill));
+            x += meditate.Width + 6 + Gap;
 
             Width = Math.Max(x - Gap + Pad, Pad * 2 + DiamondSize * 2 + Gap);
             Height = BarHeight;
@@ -516,6 +528,7 @@ namespace ClassicUO.Game.UI.Gumps
                     $"{_spell.Name} ({_spell.PowerWords}), circle {CircleOf(_id)}: {ManaOf(_id)} mana." +
                     (reagents.Length > 0 ? $" Reagents: {reagents}." : string.Empty) +
                     (can ? " Click to cast." : skillShort ? $" It needs Magery {SkillFor(CircleOf(_id))}." : " You do not have the mana for it yet.") + " Drag it onto the screen to make a button of it.";
+                tooltip = SpellChances.Describe(_spell.ID, tooltip);
                 string key = $"{can}|{tooltip}";
 
                 if (key == _shown)

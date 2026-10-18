@@ -112,6 +112,17 @@ namespace ClassicUO.Game.Managers
             dm.AddHeal(restored);
         }
 
+        internal void AddStamina(uint obj, int delta)
+        {
+            if (!_damages.TryGetValue(obj, out OverheadDamage dm) || dm == null)
+            {
+                dm = new OverheadDamage(World, World.Get(obj));
+                _damages[obj] = dm;
+            }
+
+            dm.AddStamina(delta);
+        }
+
         internal void AddDamage(uint obj, int dmg)
         {
             if (!_damages.TryGetValue(obj, out OverheadDamage dm) || dm == null)

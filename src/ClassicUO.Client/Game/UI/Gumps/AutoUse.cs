@@ -145,6 +145,11 @@ namespace ClassicUO.Game.UI.Gumps
 
         public static bool Allowed => TopBarGump.AutoUseAllowed;
 
+        /// <summary>Whether the shard shows the player as Between Worlds (just resurrected, unseen by monsters): its buff, the stealth icon titled "Between Worlds".</summary>
+        public static bool IsMaterializing(PlayerMobile me) =>
+            me.BuffIcons.TryGetValue(BuffIconType.HidingAndOrStealth, out BuffIcon icon) && icon.Text != null &&
+            icon.Text.IndexOf("Between Worlds", StringComparison.Ordinal) >= 0;
+
         public static bool AnyOn(Profile p) => p != null && (p.AutoBandage || p.AutoHealPotion || p.AutoRefreshPotion || p.AutoCure);
 
         /// <summary>Whether this much of a pool is at or below the percentage.</summary>
@@ -214,6 +219,13 @@ namespace ClassicUO.Game.UI.Gumps
             PlayerMobile me = world.Player;
 
             if ((!AnyOn(profile) && now >= _forceCureUntil) || me.IsDead || now < _nextAction)
+            {
+                return;
+            }
+
+            // the shard's Between Worlds ends at the first action the player confirms, and an automatic bandage or potion is not the
+            // player's choice, so nothing is used for them while it lasts
+            if (IsMaterializing(me))
             {
                 return;
             }

@@ -702,8 +702,8 @@ namespace ClassicUO.Game.UI.Gumps
 
                 if (toolTipCliloc > 0)
                 {
-                    string tooltip = Client.Game.UO.FileManager.Clilocs.GetString(toolTipCliloc + i);
-                    icon.SetTooltip(tooltip, 250);
+                    icon.BaseTooltip = Client.Game.UO.FileManager.Clilocs.GetString(toolTipCliloc + i);
+                    icon.SetTooltip(SpellChances.Describe(spellDef.ID, icon.BaseTooltip), 250);
                 }
 
                 icon.MouseDoubleClick += OnIconDoubleClick;
@@ -746,6 +746,23 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             SetActivePage(1);
+        }
+
+        /// <summary>The shard sent new spell chances: the open book's icons show them at once.</summary>
+        public void RefreshChanceTooltips()
+        {
+            if (_dataBox == null)
+            {
+                return;
+            }
+
+            foreach (Control c in _dataBox.Children)
+            {
+                if (c is HueGumpPic icon)
+                {
+                    icon.RefreshChanceTooltip();
+                }
+            }
         }
 
         protected override void UpdateContents()
@@ -1385,6 +1402,17 @@ namespace ClassicUO.Game.UI.Gumps
             private readonly MacroManager _mm;
             private readonly ushort _spellID;
             private readonly string _spellName;
+
+            /// <summary>The spell's own tooltip text, before the shard's chances are added.</summary>
+            public string BaseTooltip { get; set; }
+
+            public void RefreshChanceTooltip()
+            {
+                if (!string.IsNullOrEmpty(BaseTooltip))
+                {
+                    SetTooltip(SpellChances.Describe(_spellID, BaseTooltip), 250);
+                }
+            }
 
             /// <summary>
             /// ShowEdit button when user pressing ctrl + alt

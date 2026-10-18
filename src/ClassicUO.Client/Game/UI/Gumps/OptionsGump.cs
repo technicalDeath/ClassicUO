@@ -112,7 +112,7 @@ namespace ClassicUO.Game.UI.Gumps
         private ClickableColorBox _innocentColorPickerBox, _friendColorPickerBox, _crimialColorPickerBox, _canAttackColorPickerBox, _enemyColorPickerBox, _murdererColorPickerBox, _neutralColorPickerBox, _beneficColorPickerBox, _harmfulColorPickerBox;
         private HSliderBar _lightBar;
         private Checkbox _buffBarTime, _uiButtonsSingleClick, _queryBeforAttackCheckbox, _queryBeforeBeneficialCheckbox, _spellColoringCheckbox, _spellFormatCheckbox, _enableFastSpellsAssign;
-        private Checkbox _newTargetSystem, _showDPSCheckbox, _showNumbersCheckbox, _hideFullFriendlyHealth;
+        private Checkbox _newTargetSystem, _showDPSCheckbox, _showNumbersCheckbox, _showStaminaLostCheckbox, _showStaminaRestoredCheckbox, _hideFullFriendlyHealth;
 
         // macro
         private MacroControl _macroControl;
@@ -2916,6 +2916,14 @@ namespace ClassicUO.Game.UI.Gumps
 
             startY += _showNumbersCheckbox.Height + 2;
 
+            _showStaminaLostCheckbox = AddCheckBox(rightArea, "Show stamina lost to hits over your head", _currentProfile.ShowStaminaLostNumbers, startX, startY);
+
+            startY += _showStaminaLostCheckbox.Height + 2;
+
+            _showStaminaRestoredCheckbox = AddCheckBox(rightArea, "Show stamina from refresh potions over your head", _currentProfile.ShowStaminaRestoredNumbers, startX, startY);
+
+            startY += _showStaminaRestoredCheckbox.Height + 2;
+
             _showDPSCheckbox = AddCheckBox
             (
                 rightArea,
@@ -3967,6 +3975,8 @@ namespace ClassicUO.Game.UI.Gumps
 
                 case 8: // combat
                     _showNumbersCheckbox.IsChecked = true;
+                    _showStaminaLostCheckbox.IsChecked = true;
+                    _showStaminaRestoredCheckbox.IsChecked = true;
                     _showDPSCheckbox.IsChecked = false;
                     _innocentColorPickerBox.Hue = 0x005A;
                     _friendColorPickerBox.Hue = 0x0044;
@@ -4429,6 +4439,8 @@ namespace ClassicUO.Game.UI.Gumps
             _currentProfile.EnabledSpellFormat = _spellFormatCheckbox.IsChecked;
             _currentProfile.SpellDisplayFormat = _spellFormatBox.Text;
             _currentProfile.ShowOverheadNumbers = _showNumbersCheckbox.IsChecked;
+            _currentProfile.ShowStaminaLostNumbers = _showStaminaLostCheckbox.IsChecked;
+            _currentProfile.ShowStaminaRestoredNumbers = _showStaminaRestoredCheckbox.IsChecked;
             _currentProfile.ShowDPSWithDamageNumbers = _showDPSCheckbox.IsChecked;
 
             // macros

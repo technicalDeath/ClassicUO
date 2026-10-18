@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: BSD-2-Clause
+// SPDX-License-Identifier: BSD-2-Clause
 
 using ClassicUO.Configuration;
 using ClassicUO.Renderer;
@@ -103,6 +103,22 @@ namespace ClassicUO.Game.GameObjects
             TextObject text_obj = TextObject.Create(_world);
 
             text_obj.RenderedText = RenderedText.Create("+" + restored, 0x0044, 3, false);
+            text_obj.Time = Time.Ticks + 1500;
+
+            _messages.AddToFront(text_obj);
+
+            if (_messages.Count > 10)
+            {
+                _messages.RemoveFromBack()?.Destroy();
+            }
+        }
+
+        /// <summary>A stamina change: a blue "-N stam" or "+N stam" that floats up beside the damage numbers.</summary>
+        public void AddStamina(int delta)
+        {
+            TextObject text_obj = TextObject.Create(_world);
+
+            text_obj.RenderedText = RenderedText.Create((delta > 0 ? "+" : "") + delta + " stam", ClassicUO.Game.Managers.OverheadNumbers.StaminaHue, 3, false);
             text_obj.Time = Time.Ticks + 1500;
 
             _messages.AddToFront(text_obj);
