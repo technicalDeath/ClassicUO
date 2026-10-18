@@ -234,7 +234,13 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void BuildScrollArea()
         {
-            _gridScroll?.Dispose();
+            // Dispose empties a control but leaves it in this window's child list until the next Update, so the old scroll area and grip are taken out at once: a frame drawn
+            // in between must not meet an empty, disposed ScrollArea (crash report 2026-10-17).
+            if (_gridScroll != null)
+            {
+                _gridScroll.Dispose();
+                Remove(_gridScroll);
+            }
 
             _gridScroll = new ScrollArea(GridMargin, HeaderHeight, _columns * CellPitch - CellGap + ScrollBarWidth + 4, _rows * CellPitch - CellGap, true)
             {
@@ -243,7 +249,12 @@ namespace ClassicUO.Game.UI.Gumps
             };
             Add(_gridScroll);
 
-            _resizeButton?.Dispose();
+            if (_resizeButton != null)
+            {
+                _resizeButton.Dispose();
+                Remove(_resizeButton);
+            }
+
             _resizeButton = new GridGrip();
             _resizeButton.MouseDown += (sender, e) =>
             {

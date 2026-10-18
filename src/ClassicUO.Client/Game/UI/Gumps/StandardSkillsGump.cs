@@ -255,6 +255,12 @@ namespace ClassicUO.Game.UI.Gumps
         /// </summary>
         private const int NewCharacterSkillTenths = 1500;
 
+        /// <summary>
+        /// The shard is Ultima Online Renaissance: its skills are ids 0 to 48 (Alchemy to Remove Trap). The client's own skill list goes on to Necromancy, Focus, Chivalry, Bushido,
+        /// Ninjitsu, Spellweaving, Mysticism, Imbuing and Throwing (ids 49 to 57), which belong to later expansions, so the window leaves them out. This client is built for this shard only.
+        /// </summary>
+        internal const int EraSkillCount = 49;
+
         private bool IsNewCharacter()
         {
             int total = 0;
@@ -283,14 +289,15 @@ namespace ClassicUO.Game.UI.Gumps
 
                     int count = g.Count;
                     bool hasTrained = false;
+                    int row = 0;   // rows close up over the skills that are left out
 
                     for (int i = 0; i < count; i++)
                     {
                         byte index = g.GetSkill(i);
 
-                        if (index < Client.Game.UO.FileManager.Skills.SkillsCount)
+                        if (index < Client.Game.UO.FileManager.Skills.SkillsCount && index < EraSkillCount)
                         {
-                            control.AddSkill(index, 0, 17 + i * 17);
+                            control.AddSkill(index, 0, 17 + row++ * 17);
                             hasTrained |= index < World.Player.Skills.Length && World.Player.Skills[index] is { BaseFixed: > 0 };
                         }
                     }

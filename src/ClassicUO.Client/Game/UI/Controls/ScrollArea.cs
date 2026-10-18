@@ -101,6 +101,13 @@ namespace ClassicUO.Game.UI.Controls
 
         public override bool AddToRenderLists(RenderLists renderLists, int x, int y, ref float layerDepthRef)
         {
+            // A disposed control has no children left, and it stays in its parent's list until the parent's next Update removes it, so a frame drawn in between (a gump that rebuilds
+            // its scroll area while it is being resized) reached Children[0] on an empty list and crashed the client. The base class has the same guard.
+            if (IsDisposed || Children.Count == 0)
+            {
+                return false;
+            }
+
             ScrollBarBase scrollbar = (ScrollBarBase)Children[0];
             scrollbar.AddToRenderLists(renderLists, x + scrollbar.X, y + scrollbar.Y, ref layerDepthRef);
             float layerDepth = layerDepthRef;
