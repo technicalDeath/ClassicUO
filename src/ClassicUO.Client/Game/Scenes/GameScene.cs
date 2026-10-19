@@ -846,6 +846,22 @@ namespace ClassicUO.Game.Scenes
             bar.SetInScreen();
         }
 
+        /// <summary>The small round map opens once for a new profile (docked in the dark column, as the Map button opens it); after that it is the player's.</summary>
+        private void OfferMiniMap(Profile profile)
+        {
+            if (profile.MiniMapOffered)
+            {
+                return;
+            }
+
+            profile.MiniMapOffered = true;
+
+            if (UIManager.GetGump<MiniMapGump>() == null)
+            {
+                GameActions.OpenMiniMap(_world);
+            }
+        }
+
         /// <summary>
         /// The shard's default profile turns the counter bar on: a blank hotbar, which shows its own hint about dropping an item into it, is opened once beside the game window
         /// so a new player can see the bar exists and can be customised. After that it is the player's: closing it or turning it off stays that way.
@@ -906,6 +922,7 @@ namespace ClassicUO.Game.Scenes
             {
                 _offerInfoBarAt = 0;
                 OfferInfoBar(currentProfile);
+                OfferMiniMap(currentProfile);
             }
             OfferBuffWindow(currentProfile);
 

@@ -102,7 +102,15 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 foreach (var k in World.Player.BuffIcons)
                 {
-                    _box.Add(new BuffControlEntry(World.Player.BuffIcons[k.Key]));
+                    BuffIcon icon = World.Player.BuffIcons[k.Key];
+
+                    // an icon whose countdown has run out waits only for the server's removal: shown again it would ask for this rebuild every frame
+                    if (icon.Timer != 0xFFFF_FFFF && icon.Timer <= Time.Ticks)
+                    {
+                        continue;
+                    }
+
+                    _box.Add(new BuffControlEntry(icon));
                 }
             }
 
@@ -284,7 +292,7 @@ namespace ClassicUO.Game.UI.Gumps
         private class BuffControlEntry : GumpPic
         {
             private byte _alpha;
-            private bool _decreaseAlpha;
+            private bool _expired;
             private readonly RenderedText _gText;
             private float _updateTooltipTime;
 
@@ -297,7 +305,6 @@ namespace ClassicUO.Game.UI.Gumps
 
                 Icon = icon;
                 _alpha = 0xFF;
-                _decreaseAlpha = true;
 
                 _gText = RenderedText.Create(
                     "",
@@ -359,35 +366,19 @@ namespace ClassicUO.Game.UI.Gumps
                     {
                         if (delta <= 0)
                         {
-                            ((BuffGump)Parent.Parent)?.RequestUpdateContents();
+                            // ask once: the rebuild leaves this icon out until the server takes it away
+                            if (!_expired)
+                            {
+                                _expired = true;
+                                ((BuffGump)Parent.Parent)?.RequestUpdateContents();
+                            }
                         }
                         else
                         {
-                            int alpha = _alpha;
-                            int addVal = (10000 - delta) / 600;
-
-                            if (_decreaseAlpha)
-                            {
-                                alpha -= addVal;
-
-                                if (alpha <= 60)
-                                {
-                                    _decreaseAlpha = false;
-                                    alpha = 60;
-                                }
-                            }
-                            else
-                            {
-                                alpha += addVal;
-
-                                if (alpha >= 255)
-                                {
-                                    _decreaseAlpha = true;
-                                    alpha = 255;
-                                }
-                            }
-
-                            _alpha = (byte)alpha;
+                            // the last ten seconds pulse, faster as the end nears, by the clock rather than by frames, so the pace is the same at any frame rate
+                            double period = 300 + 700 * (delta / 10000.0);
+                            double phase = Time.Ticks % (uint)period / period;
+                            _alpha = (byte)(60 + 195 * (0.5 + 0.5 * Math.Cos(2 * Math.PI * phase)));
                         }
                     }
                 }

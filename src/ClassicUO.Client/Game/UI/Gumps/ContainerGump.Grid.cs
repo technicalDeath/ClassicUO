@@ -5,6 +5,7 @@
 // Cell numbers are the client's own: they live in GridContainers.txt in the profile folder and never go to the server.
 // Written for this fork. The idea (cells, locks, sort, search) follows what TazUO's grid containers offer; no TazUO code is copied.
 
+using ClassicUO.Network;
 using ClassicUO.Assets;
 using ClassicUO.Configuration;
 using ClassicUO.Game.Data;
@@ -53,6 +54,10 @@ namespace ClassicUO.Game.UI.Gumps
         private GridButton _autoButton;
         private GridButton _orderButton;
         private GridButton _modeButton;
+        private GridButton _carveButton;
+
+        /// <summary>The shard's extended command for the corpse Carve button: ask (0) or carve (1), answered with whether the corpse can be carved.</summary>
+        public const ushort CarveCommand = 0xB0;
         private GridGrip _resizeButton;
         private Label _hint;
         private GridChrome _chrome;
@@ -94,6 +99,24 @@ namespace ClassicUO.Game.UI.Gumps
         }
 
         private bool IsCorpseGrid => Graphic == CORPSES_GUMP || World.Items.Get(LocalSerial)?.IsCorpse == true;
+
+        /// <summary>The container is carried by the player (the backpack, a bag in it, the bank box): not a corpse, a chest or someone else's pack.</summary>
+        private bool InPlayersPossession
+        {
+            get
+            {
+                Item container = World.Items.Get(LocalSerial);
+
+                return container != null && World.Player != null && (container.Container == World.Player.Serial || container.RootContainer == World.Player.Serial);
+            }
+        }
+
+        private const string LockHint = "Ctrl-click an item to lock its cell";
+        private const string TakeHint = "Alt-click an item to put it in your pack";
+        private const string TakeAndLockHint = "Alt-click: to your pack. Ctrl-click: lock";
+
+        /// <summary>The footer line: a corpse's cells are never locked, and Alt-click takes from a container that is not yours.</summary>
+        private string HintText => IsCorpseGrid ? TakeHint : InPlayersPossession ? LockHint : TakeAndLockHint;
 
         private void BuildGrid()
         {
@@ -150,7 +173,7 @@ namespace ClassicUO.Game.UI.Gumps
             _search.TextChanged += (sender, e) => _relayout = true;
             Add(_search);
 
-            Add(_hint = new Label("Ctrl-click an item to lock its cell", true, 0x0481, 0, 1) { AcceptMouseInput = false });
+            Add(_hint = new Label(LockHint, true, 0x0481, 0, 1) { AcceptMouseInput = false });
 
             Add(_searchHint = new Label("Search this container", true, 0x0481, 0, 1) { X = GridMargin + 6, Y = 31, AcceptMouseInput = false });
 
@@ -177,6 +200,15 @@ namespace ClassicUO.Game.UI.Gumps
             }));
             _modeButton.SetTooltip("Search either marks the matches with a gold frame, or hides everything else.", 230);
 
+            // shown only once the shard says this corpse can be carved; it carves with the first knife or sword in the hands or the pack
+            Add(_carveButton = new GridButton("Carve", 50, () => NetClient.Socket.Send_CorpseCarve(LocalSerial, 1)) { IsVisible = false });
+            _carveButton.SetTooltip("Carve this corpse for its meat, hides, feathers, wool or scales, with a knife or sword from your pack.", 230);
+
+            if (IsCorpseGrid)
+            {
+                NetClient.Socket.Send_CorpseCarve(LocalSerial, 0);
+            }
+
             BuildScrollArea();
             _relayout = true;
         }
@@ -202,6 +234,15 @@ namespace ClassicUO.Game.UI.Gumps
             return string.IsNullOrEmpty(name) ? (IsCorpseGrid ? "a corpse" : "Container") : name;
         }
 
+        /// <summary>The shard said whether this corpse can be carved: the Carve button shows only while it can.</summary>
+        public void SetCarvable(bool carvable)
+        {
+            if (_carveButton != null && IsCorpseGrid)
+            {
+                _carveButton.IsVisible = carvable;
+            }
+        }
+
         private void PositionChrome()
         {
             if (_chrome == null)
@@ -221,6 +262,12 @@ namespace ClassicUO.Game.UI.Gumps
             _sortButton.Y = 54;
             _modeButton.X = GridMargin + 6;
             _modeButton.Y = 54;
+
+            if (_carveButton != null)
+            {
+                _carveButton.X = _modeButton.X + _modeButton.Width + 4;
+                _carveButton.Y = 54;
+            }
 
             _search.Width = Width - 2 * GridMargin - ScrollBarWidth - 4;
             _classicButton.X = Width - GridMargin - _classicButton.Width - 8;
@@ -595,6 +642,21 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             _autoButton.Active = _state.Auto;
+
+            if (_hint.Text != HintText)
+            {
+                _hint.Text = HintText;
+                _sortButton.SetTooltip(
+                    IsCorpseGrid ? "Put everything in order now." : "Put everything in order now. Items you locked (Ctrl-click an item) stay where they are.", 230
+                );
+            }
+
+            if (IsCorpseGrid && _state.Locked.Count > 0)
+            {
+                // a corpse's cells are never locked: a lock left from before would only keep Sort from tidying it
+                _state.Locked.Clear();
+                _state.Dirty = true;
+            }
             _orderButton.Text = OrderNames[_state.Order];
             _modeButton.Text = ProfileManager.CurrentProfile.GridSearchHide ? "Hide" : "Mark";
             PositionChrome();
@@ -607,7 +669,7 @@ namespace ClassicUO.Game.UI.Gumps
 
         private void OnGridItemMouseUp(object sender, MouseEventArgs e)
         {
-            if (e.Button != MouseButtonType.Left || !Keyboard.Ctrl || sender is not ItemGump control)
+            if (e.Button != MouseButtonType.Left || !(Keyboard.Ctrl || Keyboard.Alt) || sender is not ItemGump control)
             {
                 return;
             }
@@ -620,6 +682,24 @@ namespace ClassicUO.Game.UI.Gumps
             }
 
             uint serial = control.LocalSerial;
+
+            if (Keyboard.Alt)
+            {
+                // Alt-click takes the whole item or stack from a container that is not the player's (a corpse, a chest) into the backpack (or the grab bag)
+                if (!InPlayersPossession && World.Items.Get(serial) is Item taken && !Client.Game.UO.GameCursor.ItemHold.Enabled)
+                {
+                    GameActions.GrabItem(World, serial, taken.Amount);
+                    Mouse.CancelDoubleClick = true;
+                    World.DelayedObjectClickManager.Clear();
+                }
+
+                return;
+            }
+
+            if (IsCorpseGrid)
+            {
+                return;
+            }
 
             if (!_state.Locked.Remove(serial))
             {

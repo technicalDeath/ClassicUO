@@ -3553,6 +3553,24 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
+        /// <summary>The corpse window's Carve button (CorpseCarveButton, command 0xB0): mode 0 asks whether the corpse can be carved, 1 carves it; the answer is the same command.</summary>
+        public static void Send_CorpseCarve(this NetClient socket, uint corpse, byte mode)
+        {
+            var writer = new StackDataWriter(10);
+
+            writer.WriteUInt8(0xBF);
+            writer.WriteZero(2);
+            writer.WriteUInt16BE(0xB0);
+            writer.WriteUInt32BE(corpse);
+            writer.WriteUInt8(mode);
+
+            writer.Seek(1, SeekOrigin.Begin);
+            writer.WriteUInt16BE((ushort) writer.BytesWritten);
+
+            socket.Send(writer.BufferWritten);
+            writer.Dispose();
+        }
+
         /// <summary>Asks the shard how worn the given weapons, shields and armor are (CombatBarService, command 0xA9); the answer is the same command.</summary>
         public static void Send_DurabilityRequest(this NetClient socket, List<uint> serials)
         {

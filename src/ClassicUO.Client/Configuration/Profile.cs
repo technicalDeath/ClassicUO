@@ -314,6 +314,12 @@ namespace ClassicUO.Configuration
 
         /// <summary>The info bar (hits, mana, stamina) has been opened for this profile once; after that it is the player's.</summary>
         public bool InfoBarOffered { get; set; }
+
+        /// <summary>
+        /// The small round map has been opened for this profile once; after that it is the player's. True by default so an existing profile is left alone; the shard's
+        /// new-profile defaults set it false, so a new player finds the map open.
+        /// </summary>
+        public bool MiniMapOffered { get; set; } = true;
         public bool CounterBarHighlightOnChange { get; set; } = true;
         public bool CounterBarHighlightOnAmount { get; set; }
         public bool CounterBarDisplayAbbreviatedAmount { get; set; }

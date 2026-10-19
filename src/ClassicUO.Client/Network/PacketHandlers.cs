@@ -4191,6 +4191,15 @@ namespace ClassicUO.Network
 
                     break;
 
+                case ContainerGump.CarveCommand: // the shard says whether a corpse can be carved, for its grid window's Carve button
+                    {
+                        uint corpse = p.ReadUInt32BE();
+                        bool carvable = p.Remaining > 0 && p.ReadUInt8() != 0;
+                        UIManager.GetGump<ContainerGump>(corpse)?.SetCarvable(carvable);
+                    }
+
+                    break;
+
                 case MenuGump.ChancesCommand: // the shard sends each craft menu entry's gain and make chance
                     {
                         uint menuSerial = p.ReadUInt32BE();
