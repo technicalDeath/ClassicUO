@@ -33,7 +33,8 @@ namespace ClassicUO.Game.UI.Gumps
             bool arrowAdded = false;
             int width = 0, height = 20;
 
-            // the shard's actions: their real labels, greyed ones below the rest with the reason as a tooltip (WorldActions, command 0xB2)
+            // the shard's actions: their real labels, greyed ones below the rest with the reason as a tooltip, and any explanation the shard sends as a tooltip
+            // on an entry that can be chosen (WorldActions, command 0xB2)
             var texts = WorldActions.TakeItemTexts(data.Serial);
             var order = new List<int>(data.Items.Length);
 
@@ -97,11 +98,12 @@ namespace ClassicUO.Game.UI.Gumps
                 if ((item.Flags & 0x01) != 0)
                 {
                     _disabled.Add(item.Index);
+                }
 
-                    if (!string.IsNullOrEmpty(tooltip))
-                    {
-                        box.SetTooltip(tooltip);
-                    }
+                // a greyed entry's tooltip says why; an entry that can be chosen may carry one that says what it does (the pet friend entries)
+                if (!string.IsNullOrEmpty(tooltip))
+                {
+                    box.SetTooltip(tooltip);
                 }
 
                 Add(box);
