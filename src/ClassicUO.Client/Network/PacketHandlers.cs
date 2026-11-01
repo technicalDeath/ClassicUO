@@ -4191,6 +4191,16 @@ namespace ClassicUO.Network
 
                     break;
 
+                case WorldActions.CommandId: // the shard lists what can be done with the clicked static, for the left-click actions menu
+                    WorldActions.OnReply(world, ref p);
+
+                    break;
+
+                case WorldActions.ItemTextsCommandId: // the shard's labels and reasons for its entries in the item menu that follows
+                    WorldActions.OnItemTexts(ref p);
+
+                    break;
+
                 case ContainerGump.CarveCommand: // the shard says whether a corpse can be carved, for its grid window's Carve button
                     {
                         uint corpse = p.ReadUInt32BE();

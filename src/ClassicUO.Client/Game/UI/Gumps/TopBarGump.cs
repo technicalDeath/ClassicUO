@@ -191,6 +191,7 @@ namespace ClassicUO.Game.UI.Gumps
         private const ushort AutoUseBit = 1 << 4;
         private const ushort TooltipsBit = 1 << 5;
         private const ushort AutoPickupBit = 1 << 6;
+        private const ushort ActionsBit = 1 << 7;
 
         private static ushort ShardMask;
 
@@ -201,6 +202,9 @@ namespace ClassicUO.Game.UI.Gumps
 
         /// <summary>The shard picks up arrows, bolts and reagents for players (it works with or without the shard bar).</summary>
         public static bool AutoPickupAllowed => (ShardMask & AutoPickupBit) != 0;
+
+        /// <summary>A left click on something with an action (a tree) asks the shard for its actions menu (WorldActions, command 0xB1).</summary>
+        public static bool WorldActionsAllowed => (ShardMask & ActionsBit) != 0;
 
         /// <summary>What the Help button does: the shard's Welcome guide (it has the Skill Guide and Page staff buttons) when the shard says so, the stock page-a-GM request otherwise. The paperdoll's Help button does the same.</summary>
         public static void OpenHelp()

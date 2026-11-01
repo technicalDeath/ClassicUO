@@ -1,6 +1,8 @@
 ﻿// SPDX-License-Identifier: BSD-2-Clause
 
+using System.Collections.Generic;
 using ClassicUO.Game.Data;
+using ClassicUO.Game.Managers;
 using ClassicUO.Game.UI.Controls;
 using ClassicUO.Input;
 using ClassicUO.Assets;
@@ -13,6 +15,7 @@ namespace ClassicUO.Game.UI.Gumps
     {
         private ushort _selectedItem;
         private readonly PopupMenuData _data;
+        private readonly HashSet<ushort> _disabled = new HashSet<ushort>();
 
         public PopupMenuGump(World world, PopupMenuData data) : base(world, 0, 0)
         {
@@ -30,11 +33,38 @@ namespace ClassicUO.Game.UI.Gumps
             bool arrowAdded = false;
             int width = 0, height = 20;
 
+            // the shard's actions: their real labels, greyed ones below the rest with the reason as a tooltip (WorldActions, command 0xB2)
+            var texts = WorldActions.TakeItemTexts(data.Serial);
+            var order = new List<int>(data.Items.Length);
+
             for (int i = 0; i < data.Items.Length; i++)
+            {
+                if ((data.Items[i].Flags & 0x01) == 0)
+                {
+                    order.Add(i);
+                }
+            }
+
+            for (int i = 0; i < data.Items.Length; i++)
+            {
+                if ((data.Items[i].Flags & 0x01) != 0)
+                {
+                    order.Add(i);
+                }
+            }
+
+            foreach (int i in order)
             {
                 ref PopupMenuItem item = ref data.Items[i];
 
                 string text = Client.Game.UO.FileManager.Clilocs.GetString(item.Cliloc);
+                string tooltip = null;
+
+                if (texts != null && texts.TryGetValue(item.Index, out var shard))
+                {
+                    text = shard.Label;
+                    tooltip = shard.Reason;
+                }
 
                 ushort hue = item.Hue;
 
@@ -53,7 +83,8 @@ namespace ClassicUO.Game.UI.Gumps
 
                 Client.Game.UO.FileManager.Fonts.SetUseHTML(false);
 
-                HitBox box = new HitBox(10, offsetY, label.Width, label.Height)
+                // a greyed entry is not lit on hover: its grey text would vanish under the highlight, and it cannot be chosen
+                HitBox box = new HitBox(10, offsetY, label.Width, label.Height, alpha: (item.Flags & 0x01) != 0 ? 0f : 0.25f)
                 {
                     Tag = item.Index
                 };
@@ -62,6 +93,16 @@ namespace ClassicUO.Game.UI.Gumps
                 {
                     _selectedItem = (ushort)(sender as HitBox).Tag;
                 };
+
+                if ((item.Flags & 0x01) != 0)
+                {
+                    _disabled.Add(item.Index);
+
+                    if (!string.IsNullOrEmpty(tooltip))
+                    {
+                        box.SetTooltip(tooltip);
+                    }
+                }
 
                 Add(box);
                 Add(label);
@@ -118,6 +159,12 @@ namespace ClassicUO.Game.UI.Gumps
         {
             if (button == MouseButtonType.Left)
             {
+                // a greyed entry does nothing; its tooltip says why
+                if (_disabled.Contains(_selectedItem))
+                {
+                    return;
+                }
+
                 GameActions.ResponsePopupMenu(_data.Serial, _selectedItem);
                 Dispose();
             }

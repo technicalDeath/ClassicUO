@@ -77,6 +77,10 @@ namespace ClassicUO.Game.UI.Controls
 
         public readonly Action Action;
         public readonly bool CanBeSelected;
+
+        /// <summary>Shown greyed out, does nothing when clicked, and says why in <see cref="Tooltip"/> (the shard's left-click actions menu).</summary>
+        public bool Disabled;
+        public string Tooltip;
         public bool IsSelected;
         public List<ContextMenuItemEntry> Items = new List<ContextMenuItemEntry>();
         public readonly string Text;
@@ -226,7 +230,7 @@ namespace ClassicUO.Game.UI.Controls
                 (
                     entry.Text,
                     true,
-                    0xFFFF,
+                    entry.Disabled ? (ushort) 0x0386 : (ushort) 0xFFFF,
                     0,
                     style: FontStyle.BlackBorder
                 )
@@ -235,6 +239,11 @@ namespace ClassicUO.Game.UI.Controls
                 };
 
                 Add(_label);
+
+                if (!string.IsNullOrEmpty(entry.Tooltip))
+                {
+                    SetTooltip(entry.Tooltip);
+                }
 
 
                 if (entry.CanBeSelected)
@@ -323,6 +332,14 @@ namespace ClassicUO.Game.UI.Controls
 
             protected override void OnMouseUp(int x, int y, MouseButtonType button)
             {
+                if (button == MouseButtonType.Left && _entry.Disabled)
+                {
+                    Mouse.CancelDoubleClick = true;
+                    Mouse.LastLeftButtonClickTime = 0;
+
+                    return;
+                }
+
                 if (button == MouseButtonType.Left)
                 {
                     _entry.Action?.Invoke();
@@ -343,7 +360,7 @@ namespace ClassicUO.Game.UI.Controls
 
             public override bool AddToRenderLists(RenderLists renderLists, int x, int y, ref float layerDepthRef)
             {
-                if (!string.IsNullOrWhiteSpace(_label.Text) && MouseIsOver)
+                if (!string.IsNullOrWhiteSpace(_label.Text) && MouseIsOver && !_entry.Disabled)
                 {
                     Vector3 hueVector = ShaderHueTranslator.GetHueVector(0);
 

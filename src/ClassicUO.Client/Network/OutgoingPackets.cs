@@ -3571,6 +3571,32 @@ namespace ClassicUO.Network
             writer.Dispose();
         }
 
+        /// <summary>
+        /// The shard's left-click actions on a map static (WorldActions, command 0xB1): mode 0 asks which actions the static has, mode 1 does one. The tile's
+        /// place and graphic say which static was clicked.
+        /// </summary>
+        public static void Send_WorldAction(this NetClient socket, ushort x, ushort y, sbyte z, ushort graphic, byte mode, byte action, bool land)
+        {
+            var writer = new StackDataWriter(16);
+
+            writer.WriteUInt8(0xBF);
+            writer.WriteZero(2);
+            writer.WriteUInt16BE(0xB1);
+            writer.WriteUInt16BE(x);
+            writer.WriteUInt16BE(y);
+            writer.WriteInt8(z);
+            writer.WriteUInt16BE(graphic);
+            writer.WriteUInt8(mode);
+            writer.WriteUInt8(action);
+            writer.WriteBool(land);
+
+            writer.Seek(1, SeekOrigin.Begin);
+            writer.WriteUInt16BE((ushort) writer.BytesWritten);
+
+            socket.Send(writer.BufferWritten);
+            writer.Dispose();
+        }
+
         /// <summary>Asks the shard how worn the given weapons, shields and armor are (CombatBarService, command 0xA9); the answer is the same command.</summary>
         public static void Send_DurabilityRequest(this NetClient socket, List<uint> serials)
         {

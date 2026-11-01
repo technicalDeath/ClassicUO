@@ -677,6 +677,9 @@ namespace ClassicUO.Game.Scenes
                             obj.TextContainer.MaxSize = 1;
                         }
 
+                        // the shard's left-click actions (a tree: Chop wood); its answer opens the menu
+                        WorldActions.Ask(_world, st.X, st.Y, st.Z, st.Graphic, false);
+
                         break;
 
                     case Multi multi:
@@ -706,6 +709,12 @@ namespace ClassicUO.Game.Scenes
                         {
                             obj.TextContainer.MaxSize = 1;
                         }
+
+                        break;
+
+                    case Land land:
+                        // the shard's left-click actions on the ground (rock: Mine; water: Fish)
+                        WorldActions.Ask(_world, land.X, land.Y, land.Z, land.Graphic, true);
 
                         break;
 
@@ -746,6 +755,8 @@ namespace ClassicUO.Game.Scenes
         private bool OnLeftMouseDoubleClick()
         {
             bool result = false;
+
+            WorldActions.Cancel();
 
             if (!UIManager.IsMouseOverWorld)
             {
