@@ -23,7 +23,7 @@ namespace ClassicUO.Game.Managers
                 return text;
             }
 
-            return $"{text}\nChance to raise Magery: {c.Gain}%\nChance to cast it: {c.Cast}%";
+            return $"{text}\nGain: {c.Gain}%\nCast: {c.Cast}%";
         }
 
         public static void OnCommand(ref ClassicUO.IO.StackDataReader p)

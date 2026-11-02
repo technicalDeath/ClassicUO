@@ -150,7 +150,7 @@ namespace ClassicUO.Game.UI.Gumps
             {
                 if (gains[i] != NoChance && _views.TryGetValue(i + 1, out var entry))
                 {
-                    entry.View.SetTooltip($"{entry.Name}\nChance to raise your skill: {gains[i]}%\nChance to make it: {makes[i]}%");
+                    entry.View.SetTooltip($"{entry.Name}\nGain: {gains[i]}%\nSuccess: {makes[i]}%");
                 }
             }
         }
