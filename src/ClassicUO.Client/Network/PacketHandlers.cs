@@ -625,7 +625,11 @@ namespace ClassicUO.Network
                         }
                         else
                         {
-                            if (Client.Game.UO.Version >= Utility.ClientVersion.CV_500A)
+                            if (CarryWeight.LimitFor(world.Player.Strength) is { } shardLimit)
+                            {
+                                world.Player.WeightMax = shardLimit;
+                            }
+                            else if (Client.Game.UO.Version >= Utility.ClientVersion.CV_500A)
                             {
                                 world.Player.WeightMax = (ushort)(
                                     7 * (world.Player.Strength >> 1) + 40
@@ -4235,6 +4239,11 @@ namespace ClassicUO.Network
 
                 case TopBarGump.Command: // the shard says which buttons its top bar shows
                     TopBarGump.OnMaskReply(world, ref p);
+
+                    break;
+
+                case CarryWeight.CommandId: // the shard says how its carry limit is worked out
+                    CarryWeight.OnCommand(world, ref p);
 
                     break;
 

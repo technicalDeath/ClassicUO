@@ -67,6 +67,7 @@ namespace ClassicUO.Game.Scenes
         {
             base.Load();
             TopBarGump.ResetShardMask();
+            CarryWeight.Reset();
             AutoUse.Reset();
 
             Client.Game.Window.AllowUserResizing = false;

@@ -123,6 +123,8 @@ namespace ClassicUO.Game.Scenes
                 TopBarGump.Create(_world);
             }
 
+            CarryWeight.Request();
+
             if (ProfileManager.CurrentProfile.PotionBarEnabled)
             {
                 UIManager.Add(new PotionBarGump(_world));

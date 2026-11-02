@@ -3637,6 +3637,11 @@ namespace ClassicUO.Network
             socket.Send(new byte[] { 0xBF, 0, 5, 0, 0xA8 });
         }
 
+        public static void Send_CarryWeightRequest(this NetClient socket)
+        {
+            socket.Send(new byte[] { 0xBF, 0, 5, 0, 0xB3 });
+        }
+
         public static void Send_ToggleGargoyleFlying(this NetClient socket)
         {
             const byte ID = 0xBF;
