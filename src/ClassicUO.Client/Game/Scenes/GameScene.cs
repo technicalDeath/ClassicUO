@@ -1340,6 +1340,8 @@ namespace ClassicUO.Game.Scenes
         public override void DrawUI(UltimaBatcher2D batcher)
         {
             _healthLinesManager.Draw(batcher, 0f);
+            ActionProgressBars.Draw(_world, batcher, 0f);
+            GatheredItemPopups.Draw(_world, batcher, 0f);
 
             if (!UIManager.IsMouseOverWorld)
             {

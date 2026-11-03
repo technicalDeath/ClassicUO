@@ -4247,6 +4247,15 @@ namespace ClassicUO.Network
 
                     break;
 
+                case ActionProgressBars.CommandId: // the shard says a timed action started (or was cut short), for the bar over the character
+                    ActionProgressBars.OnCommand(world, ref p);
+                    break;
+
+                case GatheredItemPopups.CommandId: // the shard says what a harvest gave, to float up from the gatherer
+                    GatheredItemPopups.OnCommand(world, ref p);
+
+                    break;
+
                 //===========================================================================================
                 //===========================================================================================
                 case 1: // fast walk prevention

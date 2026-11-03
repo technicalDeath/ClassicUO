@@ -424,6 +424,9 @@ namespace ClassicUO.Configuration
         /// <summary>Whether the stamina a refresh potion gives back floats over your head (the shard's stamina numbers).</summary>
         public bool ShowStaminaRestoredNumbers { get; set; } = true;
 
+        /// <summary>Whether what you gather floats up from you with its picture, "Logs +5" (the shard's gathered-item pop-ups).</summary>
+        public bool ShowGatheredItemPopups { get; set; } = true;
+
         /// <summary>Leave out the health bar of a friendly or neutral character (your own, a blue, green or yellow one, and the grey animals) while it is at full health; a bar that has just filled stays for five seconds. The absence of a bar then means full health.</summary>
         public bool HideFullFriendlyHealth { get; set; } = true;
 

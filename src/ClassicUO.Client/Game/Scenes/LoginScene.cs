@@ -68,6 +68,8 @@ namespace ClassicUO.Game.Scenes
             base.Load();
             TopBarGump.ResetShardMask();
             CarryWeight.Reset();
+            ActionProgressBars.Clear();
+            GatheredItemPopups.Clear();
             AutoUse.Reset();
 
             Client.Game.Window.AllowUserResizing = false;
