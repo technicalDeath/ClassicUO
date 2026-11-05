@@ -31,6 +31,21 @@ namespace ClassicUO.Game.Scenes
             new TreeUnion(0x0D8C, 0x0D90)
         };
 
+        // UO Rekindled: art is culled by what it covers, not by its tile, so a tree or tower does not pop in and out at the view's edge while
+        // part of it still shows. The tallest static in the art file rises 547 px above its tile (591 px tall) and the widest is 180 px, which
+        // reaches 112 px left of its tile; the tile range grows to match (22 px per tile).
+        private const int TALLEST_ART_TILES = 26;
+        private const int WIDE_ART_REACH = 112;
+        private const int WIDE_ART_TILES = 6;
+
+        // how far an art piece rises above the bottom of its tile
+        private static int ArtRise(ushort graphic)
+        {
+            int rise = Client.Game.UO.Arts.GetArt(graphic).UV.Height - 44;
+
+            return rise > 0 ? rise : 0;
+        }
+
         private sbyte _maxGroundZ;
         private int _maxZ;
         private Vector2 _minPixel,
@@ -567,7 +582,7 @@ namespace ClassicUO.Game.Scenes
                 return 2;
             }
 
-            if (screenY < _minPixel.Y || screenY > _maxPixel.Y)
+            if (screenY < _minPixel.Y || screenY - ArtRise(obj.Graphic) > _maxPixel.Y)
             {
                 return 1;
             }
@@ -766,7 +781,7 @@ namespace ClassicUO.Game.Scenes
 
                 int screenX = obj.RealScreenPosition.X;
 
-                if (screenX < _minPixel.X || screenX > _maxPixel.X)
+                if (screenX < _minPixel.X - WIDE_ART_REACH || screenX > _maxPixel.X)
                 {
                     break;
                 }
@@ -819,7 +834,7 @@ namespace ClassicUO.Game.Scenes
                         continue;
                     }
 
-                    if (screenY < _minPixel.Y || screenY > _maxPixel.Y)
+                    if (screenY < _minPixel.Y || screenY - ArtRise(obj.Graphic) > _maxPixel.Y)
                         continue;
 
                     // Static or Multi — meshed objects are never foliage/trees/internal/animated
@@ -1120,7 +1135,7 @@ namespace ClassicUO.Game.Scenes
                                 return itemData.Height != 0 && maxObjectZ - maxZ < height;
                             }
 
-                            if (screenY < _minPixel.Y || screenY > _maxPixel.Y)
+                            if (screenY < _minPixel.Y || screenY - ArtRise(obj.Graphic) > _maxPixel.Y)
                             {
                                 continue;
                             }
@@ -1242,10 +1257,11 @@ namespace ClassicUO.Game.Scenes
             }
             ;
 
-            int realMinRangeX = Math.Max(0, tileOffX - size);
-            int realMaxRangeX = tileOffX + size;
+            // tall art below the view's bottom edge lies further along +X and +Y; wide art past the left edge further along -X
+            int realMinRangeX = Math.Max(0, tileOffX - size - WIDE_ART_TILES);
+            int realMaxRangeX = tileOffX + size + TALLEST_ART_TILES;
             int realMinRangeY = Math.Max(0, tileOffY - size);
-            int realMaxRangeY = tileOffY + size;
+            int realMaxRangeY = tileOffY + size + TALLEST_ART_TILES;
 
             int drawOffset = (int)(44 / zoom);
 
